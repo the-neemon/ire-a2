@@ -74,21 +74,26 @@ A2 Q4.1 requires measured footprints, so every `TO MEASURE` row below is graded 
 
 ## 5. Latency, throughput, memory
 
-| Fact | Value | Scope | Method | Source | Date |
-|---|---|---|---|---|---|
-| BM25 `get_scores` | 1.6 ms/query over 65,238 articles | MIND small | A1 bench | A1-naman | 2026-08 |
-| Submission throughput | ~16.7k impressions/s, 13 m 30 s total, flat peak RSS | EB-NeRD testset | `src/pipeline/submit.py` | A1-naman | 2026-08 |
-| Submission throughput | 4 m 38 s, 2.0 GB peak | MIND large test | submit | A1-naman | 2026-08 |
-| Submission throughput | 4,629 impressions/s, 49 min | EB-NeRD test | candidates-only matmul | A1-yash | 2026-08 |
-| Submission throughput | 2,019 impressions/s, ~20 min, 0.83 GB | MIND | A1 submit | A1-yash | 2026-08 |
-| Dense index QPS | 3,624 (MIND exact flat), 2,150 (EB-NeRD exact flat) | both | `bench_ann_recall_latency` | A1-yash | 2026-08 |
-| Peak RSS, naive parquet read | 10.5 GB, OOM on a 15 GB box | EB-NeRD test | A1 | A1-yash | 2026-08 |
-| Peak RSS, column-pruned batched | 1.7 GB | EB-NeRD test | A1 | A1-yash | 2026-08 |
-| Peak RSS, `np.vstack(.to_list())` | 5.8 GB to build a 385 MB array | EB-NeRD | A1 | A1-naman | 2026-08 |
-| 768-d vs 300-d submission cost | 33 m 28 s / 5.9 GB vs 6 m 59 s / 2.7 GB | EB-NeRD | A1 | A1-naman | 2026-08 |
-| **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both | Q4.2 | A2 | |
-| **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both | Q4.3 | A2 | |
-| **Per-component build time and peak RSS** | **TO MEASURE** | tokeniser, BM25, encoder, ANN, feature store, re-ranker | Q4 | A2 | |
+**Every row here records the machine.** A p99 measured on the laptop and a QPS measured on a cluster
+node are not comparable, and the whole set backing one comparison must come from one machine. Two
+machines are in play: `laptop` (20 cores, no GPU, 15 GB RAM) and `cluster` (GPU node, describe the
+card and core count in the row). Describe hardware, never hostnames, usernames or paths.
+
+| Fact | Value | Scope | Machine | Method | Source | Date |
+|---|---|---|---|---|---|---|
+| BM25 `get_scores` | 1.6 ms/query over 65,238 articles | MIND small | laptop | A1 bench | A1-naman | 2026-08 |
+| Submission throughput | ~16.7k impressions/s, 13 m 30 s total, flat peak RSS | EB-NeRD testset | laptop | `src/pipeline/submit.py` | A1-naman | 2026-08 |
+| Submission throughput | 4 m 38 s, 2.0 GB peak | MIND large test | laptop | submit | A1-naman | 2026-08 |
+| Submission throughput | 4,629 impressions/s, 49 min | EB-NeRD test | laptop | candidates-only matmul | A1-yash | 2026-08 |
+| Submission throughput | 2,019 impressions/s, ~20 min, 0.83 GB | MIND | laptop | A1 submit | A1-yash | 2026-08 |
+| Dense index QPS | 3,624 (MIND exact flat), 2,150 (EB-NeRD exact flat) | both | laptop | `bench_ann_recall_latency` | A1-yash | 2026-08 |
+| Peak RSS, naive parquet read | 10.5 GB, OOM on a 15 GB box | EB-NeRD test | laptop | A1 | A1-yash | 2026-08 |
+| Peak RSS, column-pruned batched | 1.7 GB | EB-NeRD test | laptop | A1 | A1-yash | 2026-08 |
+| Peak RSS, `np.vstack(.to_list())` | 5.8 GB to build a 385 MB array | EB-NeRD | laptop | A1 | A1-naman | 2026-08 |
+| 768-d vs 300-d submission cost | 33 m 28 s / 5.9 GB vs 6 m 59 s / 2.7 GB | EB-NeRD | laptop | A1 | A1-naman | 2026-08 |
+| **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both |  | Q4.2 | A2 | |
+| **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both |  | Q4.3 | A2 | |
+| **Per-component build time and peak RSS** | **TO MEASURE** | tokeniser, BM25, encoder, ANN, feature store, re-ranker |  | Q4 | A2 | |
 
 ## 6. Accuracy (A1 shipped systems, for the Q3 baseline comparison)
 
