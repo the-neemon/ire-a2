@@ -21,6 +21,29 @@ make test          # leakage and behaviour-window assertions
 
 Everything runs CPU-only. Article encoding is the one stage worth a free-tier GPU.
 
+## Datasets
+
+Development runs on the small tiers; both leaderboards score the large ones only.
+
+| dataset | development | submission |
+|---|---|---|
+| EB-NeRD | `ebnerd_small` (20,738 articles) | `ebnerd_testset` (125,500 articles, 13.5M impressions) |
+| MIND | `MINDsmall_train` + `MINDsmall_dev` (65,238 articles) | `MINDlarge_test` (120,961 articles, 2.37M impressions) |
+
+`ebnerd_demo` is used only as a smoke test that the pipeline runs end to end. No reported number
+comes from it: its head slice is too small to carry a confidence interval.
+
+Article vectors default to `Ekstra_Bladet_contrastive_vector` (768-d, provided) for EB-NeRD and
+`all-MiniLM-L6-v2` (384-d, self-encoded) for MIND, both chosen by measurement. Alternatives are run
+as ablations rather than swapped in silently, and each has a row in
+[docs/ABLATIONS.md](docs/ABLATIONS.md).
+
+Split boundaries and seeds live in [configs/datasets.yaml](configs/datasets.yaml). Splits are
+temporal, so changing a boundary changes every number downstream of it.
+
+`make download` fetches everything. MIND is a gated HuggingFace repo and needs both an accepted
+licence on the dataset page and a bearer token.
+
 ## Layout
 
 ```
