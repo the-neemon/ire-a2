@@ -1,0 +1,31 @@
+# Data and environments. Never committed. A2 Q8 names data/ explicitly.
+data/
+.venv/
+
+# Archives and model checkpoints. Named explicitly, not just under data/, so one
+# written anywhere else is still caught. A2 Q8 names all three.
+*.zip
+*.pt
+*.ckpt
+
+# Generated leaderboard predictions. In A1 predictions.txt was 671 MB uncompressed.
+# The code that builds them is tracked; the output is not.
+submissions/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# LaTeX build intermediates for the design note. Only the compiled PDF is tracked,
+# because it is the graded deliverable.
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# LibreOffice editing locks, created if a deliverable is opened in an office app.
+.~lock.*#
