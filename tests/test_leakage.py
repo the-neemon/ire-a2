@@ -85,10 +85,26 @@ def test_no_history_click_at_or_after_its_impression(dataset):
     none, and that is reported rather than passed vacuously.
     """
     name, splits = dataset
-    if splits["train"]["history_timestamps"].dtype == pl.Null:
+
+    # Guard on the values, not the dtype. MIND's empty timestamp lists come back as
+    # List(Datetime) rather than Null, so a dtype check does not fire, and every
+    # `list.max()` is then null. In Polars `null >= timestamp` is null, the filter drops
+    # it, and the assertion below sees zero rows and passes having checked nothing.
+    # That is the vacuous pass this test exists to avoid.
+    def comparable(df):
+        return df.select(
+            pl.col("history_timestamps").list.max().is_not_null().sum().alias("n")
+        )["n"][0]
+
+    if splits["train"]["history_timestamps"].dtype == pl.Null or comparable(splits["train"]) == 0:
         pytest.skip(f"{name}: history has no per-item timestamps (structural guarantee only)")
 
     for split, df in splits.items():
+        checked = comparable(df)
+        assert checked > 0, (
+            f"{name}/{split}: no history timestamp is comparable, so this assertion would "
+            f"pass without testing anything"
+        )
         late = df.filter(pl.col("history_timestamps").list.max() >= pl.col("timestamp"))
         assert late.height == 0, (
             f"{name}/{split}: {late.height} impressions carry history at or after "
