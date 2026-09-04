@@ -14,7 +14,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent.parent / "data"
+DATA = Path(__file__).resolve().parent.parent.parent / "data"
 RAW = DATA / "raw"
 INTERIM = DATA / "interim"
 

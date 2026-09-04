@@ -24,7 +24,7 @@ import yaml
 
 from src.eval import beyond_accuracy, bootstrap, metrics, slicing
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
 RESULTS = ROOT / "results"

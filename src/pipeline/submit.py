@@ -43,7 +43,7 @@ import polars as pl
 import yaml
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 INTERIM = ROOT / "data/interim"
 OUT = ROOT / "deliverable/submissions"

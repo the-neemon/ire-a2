@@ -39,7 +39,7 @@ from pathlib import Path
 import polars as pl
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 OUT = ROOT / "data/processed"
 

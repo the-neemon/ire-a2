@@ -14,7 +14,7 @@ from pathlib import Path
 
 import polars as pl
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 OUT = ROOT / "data/encode_inputs"
 OUT.mkdir(parents=True, exist_ok=True)
 

@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 from src.retrieval.bm25 import OVERFETCH, TOP_K
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
 
