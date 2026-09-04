@@ -8,7 +8,7 @@ Writes data/encode_inputs/<name>.parquet with exactly `article_id` (String) and 
 (String), zstd-compressed. Upload those to Kaggle; encode; bring the vectors back; point
 `configs/datasets.yaml` at them. See notebooks/encode_articles.ipynb.
 
-    python -m pipeline.export_text
+    python -m src.pipeline.export_text
 """
 from pathlib import Path
 

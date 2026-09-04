@@ -8,8 +8,8 @@ Produces, per dataset and split:
     difference is real rather than a rounding artefact
   * the with/without serving-unavailable-features report the organisers require
 
-    python -m eval.run                       # every dataset, val + test
-    python -m eval.run mind_small --splits test
+    python -m src.eval.run                       # every dataset, val + test
+    python -m src.eval.run mind_small --splits test
 
 Writes results/<dataset>_<split>.md and .json.
 """

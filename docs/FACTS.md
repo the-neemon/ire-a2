@@ -48,7 +48,8 @@ verified for A2**: the scales differ and the pipeline has changed. Re-measure be
 | Impressions train/val/test | 17,852 / 6,872 / 25,356 | EB-NeRD demo | `python -m src.pipeline.split ebnerd_demo` | A2 | 2026-09-04 |
 | Split windows | train 05-18 07:00 -> 05-23 06:58, val 05-23 07:01 -> 05-25 06:59, test 05-25 07:00 -> 06-01 06:59 | EB-NeRD demo | `python -m src.pipeline.split ebnerd_demo` | A2 | 2026-09-04 |
 | Split windows | train 11-09 -> 11-12, val 11-13 -> 11-14, test 11-15 | MIND small | `python -m src.pipeline.split mind_small` | A2 | 2026-09-04 |
-| Leakage suite | 13 passed, 6 skipped (ebnerd_small not yet built) | both built datasets | `python -m pytest tests/ -q` | A2 | 2026-09-04 |
+| Leakage suite | 12 passed, 7 skipped | ebnerd_demo + mind_small built, ebnerd_small not yet | `python -m pytest tests/ -q` | A2 | 2026-09-04 |
+| Of which honest MIND skips | 1: `test_no_history_click_at_or_after_its_impression`, MIND ships no per-item history timestamps | MIND small | same | A2 | 2026-09-04 |
 
 ## 3. Embeddings
 
@@ -116,6 +117,16 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | Query deduplication ratio | 30,867 distinct for 61,894 val; 48,354 for 73,152 test | MIND small | laptop | `src.retrieval.bm25` stdout | A2 | 2026-09-04 |
 | Peak RSS, two-variant ablation | 1.93 GB, 9 m 23 s wall (2 variants x 2 splits) | MIND small | laptop | `/usr/bin/time -v python -m src.eval.ablate_bm25 mind_small ...` | A2 | 2026-09-04 |
 | EB-NeRD S3 throughput | ~28 KB/s sustained, stalls without a read timeout | download, from this network | laptop | `curl -w %{speed_download}` against the bucket | A2 | 2026-09-04 |
+| Split build (`src.pipeline.split`) | 41.5 s wall, **peak RSS 9.69 GB** | EB-NeRD small | laptop | `/usr/bin/time -v .venv/bin/python -m src.pipeline.split ebnerd_small` | A2 | 2026-09-04 |
+| Split build | 7.0 s wall, peak RSS 1.28 GB | MIND small | laptop | `/usr/bin/time -v ... -m src.pipeline.split mind_small` | A2 | 2026-09-04 |
+| `make split` all 3 datasets in one process | **OOM-killed (SIGKILL 137)** on a 15 GB box with ~6 GB free | all dev tiers | laptop | `make split` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 12.2 s wall, peak RSS 0.86 GB | EB-NeRD demo | laptop | `/usr/bin/time -f ... -m src.retrieval.bm25 ebnerd_demo` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 100.7 s wall, **peak RSS 7.15 GB** | EB-NeRD small | laptop | `... -m src.retrieval.bm25 ebnerd_small` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 258.2 s wall, peak RSS 1.96 GB | MIND small | laptop | `... -m src.retrieval.bm25 mind_small` | A2 | 2026-09-04 |
+| Embeddings + FAISS, all 3 splits | 13.5 s wall, peak RSS 1.02 GB | EB-NeRD demo | laptop | `... -m src.retrieval.embeddings ebnerd_demo` | A2 | 2026-09-04 |
+| Embeddings + FAISS, all 3 splits | 88.4 s wall, **peak RSS 7.04 GB** | EB-NeRD small | laptop | `... -m src.retrieval.embeddings ebnerd_small` | A2 | 2026-09-04 |
+| Embeddings: MiniLM encode 65,238 articles + FAISS, all 3 splits | 967.8 s wall (16 m 8 s), peak RSS 2.50 GB | MIND small | laptop | `/usr/bin/time -f ... -m src.retrieval.embeddings mind_small` | A2 | 2026-09-04 |
+| Leakage suite, 19 tests, data present | 28.2 s, 19 passed 0 skipped | all dev tiers | laptop | `make test` | A2 | 2026-09-04 |
 | **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both |  | Q4.2 | A2 | |
 | **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both |  | Q4.3 | A2 | |
 | **Per-component build time and peak RSS** | **TO MEASURE** | tokeniser, BM25, encoder, ANN, feature store, re-ranker |  | Q4 | A2 | |
@@ -144,6 +155,12 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | BM25 title only, stemmed | 0.5153 [0.5115, 0.5195] | 0.3279 | 0.3601 | 0.4428 | EB-NeRD demo **test** | A2 |
 | BM25 title+abstract, unstemmed | 0.5209 [0.5134, 0.5283] | 0.3444 | 0.3802 | 0.4615 | EB-NeRD demo **val** | A2 |
 | BM25 title+abstract, unstemmed | 0.5128 [0.5089, 0.5169] | 0.3273 | 0.3581 | 0.4420 | EB-NeRD demo **test** | A2 |
+| A1 port re-check: BM25 recall@200 | **0.0248** vs A1's 0.0247 | EB-NeRD small test | `src.retrieval.bm25` | A2 |
+| A1 port re-check: emb recall@200 | **0.0278** vs A1's 0.0277 | EB-NeRD small test | `src.retrieval.embeddings` | A2 |
+| A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce** | MIND small test | `src.retrieval.bm25` | A2 |
+| A1 port re-check: emb recall@200 | 0.0354 vs A1's 0.0239, **does not reproduce** | MIND small test | `src.retrieval.embeddings` | A2 |
+| | | | | |
+| **Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.** A systematic offset on one dataset only, so a configuration or corpus difference rather than noise. Resolve before quoting either. | | MIND small test | | A2 |
 | **A2 two-stage pipeline** | **TO MEASURE** | | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
 

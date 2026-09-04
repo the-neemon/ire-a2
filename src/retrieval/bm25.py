@@ -13,7 +13,7 @@ Both tracks come out of a single scoring pass. Queries are deduplicated first â€
 is constant per user within a split, so the ~230k MIND impressions collapse to far fewer
 distinct queries, and BM25 runs once per distinct query rather than once per impression.
 
-    python -m src.retrieval.bm25                   # both datasets, all splits
+    python -m src.retrieval.bm25                       # both datasets, all splits
     python -m src.retrieval.bm25 ebnerd_demo --fields title
 
 `--fields` and `--stem/--no-stem` are the two knobs the ablations in docs/ABLATIONS.md
