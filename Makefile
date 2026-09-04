@@ -15,7 +15,10 @@
 
 PY := .venv/bin/python
 DATASETS ?= ebnerd_demo ebnerd_small mind_small
-BUNDLES ?= ebnerd_demo ebnerd_small Ekstra_Bladet_word2vec \
+# contrastive_vector is the shipped default for both EB-NeRD datasets (configs/datasets.yaml),
+# so it is required, not optional: without it `make retrieve` fails on a fresh clone. word2vec
+# and mBERT are needed only to reproduce the encoder ablation.
+BUNDLES ?= ebnerd_demo ebnerd_small Ekstra_Bladet_contrastive_vector Ekstra_Bladet_word2vec \
 	google_bert_base_multilingual_cased MINDsmall_train MINDsmall_dev
 
 .PHONY: all venv data download split retrieve features rerank baseline results bench \
