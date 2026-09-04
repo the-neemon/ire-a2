@@ -99,6 +99,7 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | BM25 index + score, all 3 splits | 258.2 s wall, peak RSS 1.96 GB | MIND small | laptop | `... -m src.retrieval.bm25 mind_small` | A2 | 2026-09-04 |
 | Embeddings + FAISS, all 3 splits | 13.5 s wall, peak RSS 1.02 GB | EB-NeRD demo | laptop | `... -m src.retrieval.embeddings ebnerd_demo` | A2 | 2026-09-04 |
 | Embeddings + FAISS, all 3 splits | 88.4 s wall, **peak RSS 7.04 GB** | EB-NeRD small | laptop | `... -m src.retrieval.embeddings ebnerd_small` | A2 | 2026-09-04 |
+| Embeddings: MiniLM encode 65,238 articles + FAISS, all 3 splits | 967.8 s wall (16 m 8 s), peak RSS 2.50 GB | MIND small | laptop | `/usr/bin/time -f ... -m src.retrieval.embeddings mind_small` | A2 | 2026-09-04 |
 | Leakage suite, 19 tests, data present | 28.2 s, 19 passed 0 skipped | all dev tiers | laptop | `make test` | A2 | 2026-09-04 |
 | **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both |  | Q4.2 | A2 | |
 | **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both |  | Q4.3 | A2 | |
@@ -118,6 +119,9 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | Codabench MIND | 0.6503 | 0.3198 | 0.3454 | 0.4010 | leaderboard | A1-naman |
 | A1 port re-check: BM25 recall@200 | **0.0248** vs A1's 0.0247 | EB-NeRD small test | `src.retrieval.bm25` | A2 |
 | A1 port re-check: emb recall@200 | **0.0278** vs A1's 0.0277 | EB-NeRD small test | `src.retrieval.embeddings` | A2 |
-| A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce, investigate** | MIND small test | `src.retrieval.bm25` | A2 |
+| A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce** | MIND small test | `src.retrieval.bm25` | A2 |
+| A1 port re-check: emb recall@200 | 0.0354 vs A1's 0.0239, **does not reproduce** | MIND small test | `src.retrieval.embeddings` | A2 |
+| | | | | |
+| **Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.** A systematic offset on one dataset only, so a configuration or corpus difference rather than noise. Resolve before quoting either. | | MIND small test | | A2 |
 | **A2 two-stage pipeline** | **TO MEASURE** | | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
