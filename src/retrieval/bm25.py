@@ -16,12 +16,19 @@ distinct queries, and BM25 runs once per distinct query rather than once per imp
     python -m src.retrieval.bm25                       # both datasets, all splits
     python -m src.retrieval.bm25 ebnerd_demo --fields title
 
+`--fields` and `--stem/--no-stem` are the two knobs the ablations in docs/ABLATIONS.md
+turn. Both override the dataset config for one run only; pair either with `--out-subdir`
+to write somewhere other than the paths the rest of the pipeline reads.
+
+    python -m src.retrieval.bm25 mind_small --no-stem --out-subdir ablation/no_stem
+
 Writes, per dataset and split:
     bm25_<split>.parquet       impression_id, bm25        aligned to `candidates`
     retrieval_<split>.parquet  impression_id, retrieved   top-K ids, best first
 """
 
 import argparse
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -73,11 +80,25 @@ def stopwords_for(cfg: dict):
     return cfg.get("stopwords")
 
 
+def stemmer_for(cfg: dict):
+    """The Snowball stemmer for this dataset's language, or None if stemming is off.
+
+    Stemming and stopwords are per-language (EB-NeRD is Danish, MIND is English), so both
+    come from the dataset config. Getting this wrong silently degrades BM25 rather than
+    erroring: a Danish corpus stemmed as English just matches worse.
+
+    Whether stemming helps at all is language-dependent, not universal, which is why it is
+    a per-dataset switch rather than a constant. Danish is heavily inflected and compounds
+    freely, so collapsing surface forms should recover matches a literal comparison misses;
+    English inflects far less, so the same collapse mostly just merges distinct words and
+    can cost more than it buys. `stem` defaults to True, which is the behaviour every run
+    before this flag existed had, so an existing config keeps its meaning.
+    """
+    return Stemmer.Stemmer(cfg["language"]) if cfg.get("stem", True) else None
+
+
 def build_index(articles: pl.DataFrame, cfg: dict, fields: tuple[str, ...]):
-    # Stemming and stopwords are per-language (EB-NeRD is Danish, MIND is English), so both
-    # come from the dataset config. Getting this wrong silently degrades BM25 rather than
-    # erroring: a Danish corpus stemmed as English just matches worse.
-    stemmer = Stemmer.Stemmer(cfg["language"])
+    stemmer = stemmer_for(cfg)
     texts = document_text(articles, fields)
     tokens = bm25s.tokenize(
         texts, stopwords=stopwords_for(cfg), stemmer=stemmer, show_progress=False
@@ -159,11 +180,27 @@ def score_split(index, stemmer, cfg, impressions, articles, position, published)
     return cand_scores, retrieved
 
 
-def run(name: str, cfg: dict, fields: tuple[str, ...], splits: list[str]) -> None:
-    print(f"\n{name}  fields={'+'.join(fields)}")
+def run(name: str, cfg: dict, fields: tuple[str, ...], splits: list[str],
+        out_dir: Path | None = None) -> dict:
+    """Build the index and score every split. Returns the timings the ablation ledger wants.
+
+    `out_dir` defaults to the dataset's processed directory, which is what the pipeline
+    reads. An ablation passes a variant subdirectory instead, so measuring an alternative
+    configuration never overwrites the outputs the shipped default produced.
+    """
+    out_dir = out_dir or (PROC / name)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"\n{name}  fields={'+'.join(fields)}  stem={cfg.get('stem', True)}")
     articles = pl.read_parquet(PROC / name / "articles.parquet")
+    # Timed separately from scoring: index build is the cost an ablation changes, query
+    # scoring is dominated by the number of distinct queries, which no field or stemming
+    # choice moves.
+    start = time.perf_counter()
     index, stemmer = build_index(articles, cfg, fields)
-    print(f"  indexed {articles.height:,} articles")
+    build_seconds = time.perf_counter() - start
+    vocab = len(index.vocab_dict)
+    print(f"  indexed {articles.height:,} articles in {build_seconds:.1f} s, "
+          f"vocab {vocab:,}")
 
     position = {a: i for i, a in enumerate(articles["article_id"])}
     published = None
@@ -172,28 +209,46 @@ def run(name: str, cfg: dict, fields: tuple[str, ...], splits: list[str]) -> Non
     else:
         print("  note: no publication dates; retrieval cannot filter unpublished articles")
 
+    timings = {"build_seconds": build_seconds, "vocab": vocab,
+               "articles": articles.height, "score_seconds": {}}
     for split in splits:
         impressions = pl.read_parquet(PROC / name / f"impressions_{split}.parquet")
         print(f"  {split}: {impressions.height:,} impressions")
+        start = time.perf_counter()
         cand_scores, retrieved = score_split(
             index, stemmer, cfg, impressions, articles, position, published
         )
+        timings["score_seconds"][split] = time.perf_counter() - start
 
         pl.DataFrame({
             "impression_id": impressions["impression_id"],
             "bm25": [s.tolist() for s in cand_scores],
-        }).write_parquet(PROC / name / f"bm25_{split}.parquet")
+        }).write_parquet(out_dir / f"bm25_{split}.parquet")
         pl.DataFrame({
             "impression_id": impressions["impression_id"],
             "retrieved": retrieved,
-        }).write_parquet(PROC / name / f"retrieval_{split}.parquet")
+        }).write_parquet(out_dir / f"retrieval_{split}.parquet")
 
-        # Recall@K here is a build-time sanity signal, not the reported metric.
+        # Build-time sanity signal, not the reported metric. This is a HIT-RATE, the
+        # share of impressions with at least one clicked article retrieved, and it is
+        # deliberately not called recall: eval.metrics.recall_at_k reports the share of
+        # an impression's clicked articles that were found, averaged over impressions,
+        # and the two only agree when impressions have exactly one click.
+        #
+        # Measured on MIND small test: hit-rate 0.0333 against recall 0.0226, a 1.48x
+        # gap. Impressions that get a hit average 2.280 clicks (against 1.523 overall,
+        # since more clicks means more chances one is retrieved) but only 1.060 of them
+        # are found, so each contributes 0.6775 rather than 1.0. EB-NeRD averages 1.006
+        # clicks per impression, so there the two definitions coincide to 3 decimals.
+        # Mislabelling this cost real time: the MIND number looked like a failure to
+        # reproduce A1 while EB-NeRD matched, which reads as a corpus or config bug.
         clicked = impressions["clicked"].to_list()
         hit = sum(
             bool(set(c) & set(r)) for c, r in zip(clicked, retrieved) if c
         )
-        print(f"    recall@{TOP_K} (full-corpus retrieval): {hit / impressions.height:.4f}")
+        print(f"    hit-rate@{TOP_K} (>=1 clicked article retrieved from the full corpus): "
+              f"{hit / impressions.height:.4f}")
+    return timings
 
 
 def main() -> None:
@@ -202,10 +257,23 @@ def main() -> None:
     parser.add_argument("datasets", nargs="*", default=list(config))
     parser.add_argument("--fields", choices=list(FIELDS), default="title_abstract")
     parser.add_argument("--splits", nargs="+", default=["train", "val", "test"])
+    # Overrides the per-dataset `stem` key for one run, so the stemming ablation can be
+    # reproduced from the command line without editing (and having to revert) the config.
+    parser.add_argument("--stem", dest="stem", action="store_true", default=None,
+                        help="force stemming on, overriding the dataset config")
+    parser.add_argument("--no-stem", dest="stem", action="store_false",
+                        help="force stemming off, overriding the dataset config")
+    parser.add_argument("--out-subdir", default=None,
+                        help="write under data/processed/<dataset>/<subdir>/ instead of "
+                             "over the shipped outputs")
     args = parser.parse_args()
 
     for name in args.datasets:
-        run(name, config[name], FIELDS[args.fields], args.splits)
+        cfg = dict(config[name])
+        if args.stem is not None:
+            cfg["stem"] = args.stem
+        out_dir = (PROC / name / args.out_subdir) if args.out_subdir else None
+        run(name, cfg, FIELDS[args.fields], args.splits, out_dir)
 
 
 if __name__ == "__main__":

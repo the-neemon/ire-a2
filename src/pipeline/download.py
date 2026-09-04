@@ -40,6 +40,9 @@ MIND_BUNDLES = (
 )
 MIND_GATE_URL = f"https://huggingface.co/datasets/{MIND_REPO}"
 
+# Seconds without a byte arriving before a fetch is treated as dead rather than slow.
+READ_TIMEOUT = 60
+
 # Both EB-NeRD encoders the assignment names: word2vec is what the pipeline uses,
 # bert_base_multilingual_cased is needed only to reproduce the ablation that chose it.
 DEFAULT_BUNDLES = (
@@ -65,7 +68,7 @@ def _supports_ranges(url: str) -> "tuple[bool, int]":
     """Ask for one byte. A server that honours Range answers 206 with a Content-Range."""
     req = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=READ_TIMEOUT) as r:
             if r.status != 206:
                 return False, 0
             # Content-Range looks like "bytes 0-0/84135301"; the total is after the slash.
@@ -77,7 +80,7 @@ def _supports_ranges(url: str) -> "tuple[bool, int]":
 
 def _download_range(url: str, start: int, end: int, path: Path, index: int) -> int:
     req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
-    with urllib.request.urlopen(req, timeout=300) as r, open(path, "wb") as fh:
+    with urllib.request.urlopen(req, timeout=READ_TIMEOUT) as r, open(path, "wb") as fh:
         shutil.copyfileobj(r, fh)
     return index
 
@@ -133,11 +136,16 @@ def _fetch_ebnerd(name: str) -> Path:
     # download can never leave a truncated file that looks complete on the next run.
     tmp = dest.with_suffix(".zip.part")
 
+    # Two independent failure modes on this bucket, so two fixes, kept together.
+    # Throughput: one connection crawls (15.6 KB/s measured from the compute cluster),
+    # and ranges scale close to linearly, so ask for many slices at once.
+    # Liveness: a stalled connection never errors, it just stops, so every request
+    # carries a per-read timeout and a dead transfer fails instead of hanging.
     ranged, total = _supports_ranges(url)
     if ranged and total >= _MIN_PARALLEL_BYTES:
         _fetch_parallel(url, tmp, total, PARALLEL_CONNECTIONS)
     else:
-        with urllib.request.urlopen(url) as response, open(tmp, "wb") as fh:
+        with urllib.request.urlopen(url, timeout=READ_TIMEOUT) as response, open(tmp, "wb") as fh:
             # copyfileobj streams in chunks, so a 1.6 GB bundle never sits in memory at once.
             shutil.copyfileobj(response, fh)
 

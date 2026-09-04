@@ -31,12 +31,152 @@ a flag and measure it against the system without it.
 | 3 | Recency prior: exponential decay on article age at impression time | both | | | | planned |
 | 4 | GBDT re-ranker over engineered features beats single-signal ranking (Q2) | both | | | | planned |
 | 5 | Hybrid BM25 + semantic with a `history_len` router beats either alone | both | | | | planned |
-| 6 | Per-language stemming: Snowball Danish on, English off | both | | | | planned |
-| 7 | Queries built from titles + abstracts rather than titles only | both | | | | planned |
-| 8 | MIND BM25 documents title-only | MIND | | | | planned |
+| 6 | Per-language stemming: Snowball Danish on, English off | MIND | see 6a | | vocab 44,264 -> 60,914; build 5.2 -> 4.1 s | **rejected** |
+| 6 | Per-language stemming: Snowball Danish on, English off | EB-NeRD demo | see 6b | | vocab 22,105 -> 31,515; build 0.9 -> 0.6 s | **inconclusive** |
+| 6 | Per-language stemming, re-measured at 10x | EB-NeRD small | | | | planned |
+| 7 | BM25 documents title-only rather than title + abstract | MIND | see 7a | | vocab 44,264 -> 24,681; build 4.5 -> 1.9 s | **shipped-pending** |
+| 7 | BM25 documents title-only rather than title + abstract | EB-NeRD demo | see 7b | | vocab 22,105 -> 10,738; build 0.7 -> 0.5 s | **rejected** |
+| 7 | Field choice, re-measured at 10x | EB-NeRD small | | | | planned |
 | 9 | Re-sweep `history_len` after 2 and 7 land | both | | | | planned |
 | 10 | Better MIND article vectors than 87%-coverage mean-pooled entities | MIND | | | | planned |
 | 11 | Q3 required: one principled improvement over the reproduced NRMS baseline | both | | | | planned |
+
+### 6 and 7 in full — BM25 field and stemming, measured 2026-09-04
+
+Both were carried into the A2 queue as *partially* measured: A1 had numbers for each, but on a
+different codebase and a different scale, and neither had a paired CI. This is that
+re-verification. Every row below comes from `src.eval.ablate_bm25`, which scores both variants on
+the identical impressions and reuses the same 1,000 bootstrap resamples for the difference.
+Machine: laptop. Reports under `results/ablation_bm25_*`.
+
+**Read the deltas in the stated direction.** Each is `variant - baseline`, and each names its own
+baseline, because the two ablations happen to share one.
+
+Two metric families are reported for every cell, and they disagree often enough that quoting only
+one would be the mistake:
+
+* **AUC / MRR / nDCG** re-rank the pool the log already showed. Both Codabench competitions score
+  this, so it is the metric a shipping decision defaults to.
+* **recall@K** is candidate generation from the whole catalogue, ignoring the shown pool. This is
+  what Q2's two-stage pipeline consumes: an article the retriever never surfaces cannot be
+  re-ranked into the answer no matter how good the re-ranker is.
+
+#### 6a. English stemming on MIND — **rejected**, keep stemming on
+
+Delta of turning stemming **off**, baseline is stemming on.
+
+| split | AUC | nDCG@10 | recall@200 |
+|---|---|---|---|
+| val | **-0.0023** [-0.0034, -0.0013] | -0.0008 [-0.0018, +0.0001] | **+0.0021** [+0.0013, +0.0028] |
+| test | **-0.0028** [-0.0039, -0.0018] | **-0.0011** [-0.0020, -0.0002] | **+0.0009** [+0.0004, +0.0014] |
+
+Selected on **val AUC**, which says keep stemming: turning it off is a significant loss. Test
+agrees, and was scored once after the rule was fixed.
+
+The interesting half is that the two metrics point opposite ways and both are significant.
+Stemming helps re-ranking and *hurts* retrieval, consistently, on both splits. Collapsing
+surface forms merges genuinely distinct English words, which costs precision when the job is to
+pick 200 articles out of 65,238; within a pool of a few dozen already-plausible candidates that
+same merging instead recovers matches an exact comparison misses. Recorded rather than resolved:
+if the Q2 re-ranker ends up bottlenecked on retrieval recall, this decision should be re-opened
+for the retrieval stage alone, which the `stem` flag now makes a one-line change.
+
+**Both A1 systems are reproduced, and they were already saying this.** A1-naman measured
++0.0019 AUC and -0.0023 recall@200 for stemming on MIND and shipped it AUC-motivated; this run
+gives +0.0023 and -0.0021 on val, on a different codebase. A1-yash measured the recall side as
+-3.1% / -2.3% relative; converting this run to relative gives -5.1% on val and -3.4% on test.
+Same sign, same order of magnitude, from three independent measurements.
+
+What the A2 queue got wrong was not the measurement but the *conclusion* drawn from it. Item #6
+was written as "Snowball Danish on, English off", reading A1-yash's recall loss as a reason to
+disable English stemming while A1-naman's AUC gain sat in the same file. Both numbers were right;
+they simply answer different questions, and only pairing them per split with a CI makes the
+trade-off legible. The hypothesis as stated is what is rejected here, not either A1 number.
+
+#### 6b. Danish stemming on EB-NeRD demo — **inconclusive on accuracy**, kept on cost
+
+Delta of turning stemming **off**, baseline is stemming on.
+
+| split | AUC | nDCG@10 | recall@200 |
+|---|---|---|---|
+| val | -0.0025 [-0.0077, +0.0025] | -0.0012 [-0.0052, +0.0030] | +0.0006 [-0.0036, +0.0050] |
+| test | +0.0003 [-0.0025, +0.0029] | +0.0002 [-0.0020, +0.0024] | -0.0014 [-0.0037, +0.0004] |
+
+Every interval contains zero except test recall@100 (-0.0016 [-0.0031, -0.0002], favouring
+stemming). Kept **on**, on the cost side rather than the accuracy side: it is free and it shrinks
+the vocabulary 31,515 -> 22,105.
+
+**This is the queue's largest miss against its prior and it is worth stating plainly.** A1
+predicted +22 to +36% on recall@200 from Danish stemming. Measured here: +1.4% relative at
+demo scale, not significant. The prior is off by more than an order of magnitude.
+
+Ruled out before reporting it, per the pre-registered check that an unexpected direction is a
+wiring bug until proven otherwise. The toggle demonstrably works: with it on, `spilleren` ->
+`spil`, `håber` -> `håb`, `stadig` -> `stad`, `fortsætte` -> `fortsæt`; with it off the full
+forms survive, and the vocabulary moves 22,105 -> 31,515 accordingly. A single stemmer object is
+threaded through both `bm25s.tokenize` call sites, so documents and queries can never disagree.
+The direction is also not inverted, just tiny, which is a weaker signal of a bug than a sign flip.
+
+The most probable explanation is that this pipeline **already applies a Danish stopword list**,
+which A1 separately measured as worth 0.5035 -> 0.5232 AUC. Stopword removal and stemming
+compete for the same wins: both collapse high-frequency surface variation, so whichever runs
+first takes the credit. A1's stemming number was very likely measured against a baseline that
+had no stopword list, making it the *combined* effect of both. Not yet tested directly.
+`stem x stopwords` as a 2x2 is the obvious follow-up and is cheap here (four ~1 s index builds),
+but it is a second changed variable and therefore a separate ablation, not this row.
+
+#### 7a. MIND documents title-only — **shipped-pending**, one decision short
+
+Delta of dropping `abstract` from the indexed document, baseline is title + abstract.
+
+| split | AUC | MRR | recall@200 |
+|---|---|---|---|
+| val | **+0.0024** [+0.0006, +0.0041] | **-0.0022** [-0.0039, -0.0005] | **+0.0017** [+0.0007, +0.0028] |
+| test | **+0.0065** [+0.0047, +0.0083] | +0.0000 [-0.0017, +0.0016] | +0.0006 [-0.0003, +0.0014] |
+
+Reproduces the A1 prior almost exactly: A1 measured +0.0024 AUC and +0.0017 recall@200; this run
+gives +0.0024 and +0.0017 on val, to four decimals, on a different codebase. That is the
+strongest cross-system agreement anywhere in this file and it is what makes the rest of the row
+trustworthy.
+
+A1 recorded "no measured downside". There is one, and it took a paired CI to see: **val MRR
+falls -0.0022, significant**. Dropping the abstract wins on average pair ordering while losing on
+where the first clicked article lands, so it moves a click that was already ranked well slightly
+further down. Small, but it is a cost, and the rule here is that a gain reported without one is
+an incomplete result.
+
+Cheaper on every axis: vocabulary 44,264 -> 24,681, index build 4.5 s -> 1.9 s.
+
+Left as `shipped-pending` rather than shipped. The measurement supports the change; changing what
+ships is a decision for the team, not one to apply unilaterally from an ablation result, so
+`configs/datasets.yaml` still carries `title_abstract` for both datasets.
+
+#### 7b. EB-NeRD demo documents title-only — **rejected**
+
+Delta of dropping `abstract` (EB-NeRD's `subtitle`), baseline is title + abstract.
+
+| split | AUC | recall@100 | recall@200 |
+|---|---|---|---|
+| val | +0.0009 [-0.0062, +0.0081] | **-0.0033** [-0.0065, -0.0001] | **-0.0049** [-0.0094, -0.0002] |
+| test | +0.0028 [-0.0005, +0.0064] | -0.0006 [-0.0023, +0.0011] | -0.0010 [-0.0032, +0.0010] |
+
+Rejected on val, which is where selection happens: AUC is indistinguishable from zero on both
+splits, and recall@100 and recall@200 are both significant **losses**. Paying real retrieval
+recall for an AUC gain that no interval separates from zero is not a trade worth making, and it
+is the wrong direction for a pipeline whose stage 2 depends on stage 1 recall.
+
+This reproduces the A1 EB-NeRD finding in shape (+0.0025 AUC, -0.0024 recall@200) and confirms
+its central claim, which is the one that keeps recurring across both A1 systems and now this one:
+**more text helps retrieval and hurts re-ranking.** The two datasets want opposite settings for
+the same knob, which is precisely why the field is worth making per-dataset rather than global.
+
+#### Scale caveat, stated rather than buried
+
+Every EB-NeRD row above is **demo scale**: 11,777 articles, 6,872 val and 25,356 test
+impressions. That is roughly a tenth of `ebnerd_small` and it shows in the intervals, which are
+three to five times wider than MIND's. Several EB-NeRD cells are inconclusive *because the split
+is small*, not because the effect is zero. `ebnerd_small` re-runs are queued as separate rows and
+neither EB-NeRD verdict should be treated as settled until they land.
 
 ## A1 results carried forward
 
