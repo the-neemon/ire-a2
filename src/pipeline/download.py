@@ -9,6 +9,7 @@ so re-running costs nothing.
 
 import argparse
 import shutil
+import time
 import sys
 import urllib.request
 import zipfile
@@ -78,11 +79,38 @@ def _supports_ranges(url: str) -> "tuple[bool, int]":
         return False, 0
 
 
+RANGE_ATTEMPTS = 6
+
+
 def _download_range(url: str, start: int, end: int, path: Path, index: int) -> int:
-    req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
-    with urllib.request.urlopen(req, timeout=READ_TIMEOUT) as r, open(path, "wb") as fh:
-        shutil.copyfileobj(r, fh)
-    return index
+    """Fetch one byte range, retrying on its own.
+
+    A range that stalls must not take the transfer down with it. With 16 connections
+    on a flaky link the chance that at least one stalls is high, so a single failure
+    propagating up would discard the other fifteen ranges' work and guarantee the
+    whole download never finishes. Each range therefore retries independently, and a
+    part already on disk at the right size is left alone, so successive attempts
+    resume rather than restart.
+    """
+    want = end - start + 1
+    if path.exists() and path.stat().st_size == want:
+        return index
+
+    last = None
+    for attempt in range(RANGE_ATTEMPTS):
+        try:
+            req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
+            with urllib.request.urlopen(req, timeout=READ_TIMEOUT) as r, open(path, "wb") as fh:
+                shutil.copyfileobj(r, fh)
+            got = path.stat().st_size
+            if got != want:
+                raise OSError(f"range {index}: got {got} bytes, expected {want}")
+            return index
+        except Exception as exc:                      # noqa: BLE001 - retry anything
+            last = exc
+            path.unlink(missing_ok=True)
+            time.sleep(min(2 ** attempt, 30))         # back off, the bucket is congested
+    raise OSError(f"range {index} failed after {RANGE_ATTEMPTS} attempts: {last}")
 
 
 def _fetch_parallel(url: str, tmp: Path, total: int, connections: int) -> None:
@@ -120,8 +148,13 @@ def _fetch_parallel(url: str, tmp: Path, total: int, connections: int) -> None:
         got = tmp.stat().st_size
         if got != total:
             raise OSError(f"assembled {got} bytes, expected {total}")
-    finally:
+        # Only now that the file is assembled and length-checked are the parts
+        # redundant. Clearing them on failure instead would throw away exactly the
+        # progress the per-range resume exists to keep.
         shutil.rmtree(parts_dir, ignore_errors=True)
+    except BaseException:
+        print(f"  keeping {parts_dir.name} so the next attempt resumes")
+        raise
 
 
 def _fetch_ebnerd(name: str) -> Path:
