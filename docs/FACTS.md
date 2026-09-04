@@ -160,9 +160,44 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce** | MIND small test | `src.retrieval.bm25` | A2 |
 | A1 port re-check: emb recall@200 | 0.0354 vs A1's 0.0239, **does not reproduce** | MIND small test | `src.retrieval.embeddings` | A2 |
 | | | | | |
-| **Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.** A systematic offset on one dataset only, so a configuration or corpus difference rather than noise. Resolve before quoting either. | | MIND small test | | A2 |
+| ~~Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.~~ **Resolved 2026-09-04: two different metrics, not a corpus or config difference.** `src.retrieval.bm25` printed a hit-rate under the label recall. | | MIND small test | see below | A2 |
 | **A2 two-stage pipeline** | **TO MEASURE** | | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
+
+### Resolved: the MIND "recall@200 does not reproduce" gap was a mislabelled metric
+
+Both quantities below come from **one** retrieval run, `src.retrieval.bm25 mind_small
+--splits test`, shipped config (title+abstract, stemmed, `history_len` 100). Nothing about the
+corpus, the split or the configuration differs between them. Machine: laptop, 2026-09-04.
+
+| Definition | Value | What it counts |
+|---|---|---|
+| hit-rate@200, what `bm25.py` printed | **0.0333** | share of impressions with **at least one** clicked article retrieved |
+| mean recall@200, what `eval.metrics.recall_at_k` reports | **0.0226** | mean over impressions of (clicked articles found) / (clicked articles) |
+
+They reconcile exactly: 0.0333 x 0.6775 = 0.0226.
+
+The 0.6775 is the whole story. Of 73,152 MIND test impressions, 2,435 retrieve at least one
+clicked article. Those 2,435 average **2.280 clicks** against 1.523 across the split, because an
+impression with more clicks has more chances that one of them is retrieved. But only **1.060** of
+those clicks are actually found. So a hit impression contributes 1.0 to the hit-rate and only
+1.060/2.280 = 0.6775 to mean recall.
+
+This is why the discrepancy looked dataset-specific and therefore looked like a bug. EB-NeRD demo
+test averages **1.006** clicks per impression with 0.5% multi-click, so `|found|/|clicked|` is
+almost always exactly 1 when there is a hit and the two definitions agree to three decimals. MIND
+averages 1.523 with **28.8%** multi-click, so they cannot agree. One dataset reproducing and the
+other not was the signature of a definitional gap, not of a corpus difference.
+
+`bm25.py` now prints `hit-rate@200` and says in the code why it is not recall. **Every recall@K
+number in section 7 and in `ABLATIONS.md` is the `recall_at_k` definition**, which is the one the
+brief asks for ("how many ground-truth clicked articles appear in the top-K candidates"). The
+hit-rate is a build-time sanity signal only and no reported figure should be taken from it.
+
+Worth carrying into Q5: this is the same class of error as the open MIND MRR question, where our
+0.3548 offline disagreed with the organisers' 0.3198. Both are one metric name covering two
+definitions. When a number fails to reproduce on exactly one dataset, check the definition against
+that dataset's click-count distribution before suspecting the data.
 
 ## 7. Candidate generation — recall@K, full-corpus retrieval (A2)
 

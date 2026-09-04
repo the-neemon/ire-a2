@@ -229,12 +229,25 @@ def run(name: str, cfg: dict, fields: tuple[str, ...], splits: list[str],
             "retrieved": retrieved,
         }).write_parquet(out_dir / f"retrieval_{split}.parquet")
 
-        # Recall@K here is a build-time sanity signal, not the reported metric.
+        # Build-time sanity signal, not the reported metric. This is a HIT-RATE, the
+        # share of impressions with at least one clicked article retrieved, and it is
+        # deliberately not called recall: eval.metrics.recall_at_k reports the share of
+        # an impression's clicked articles that were found, averaged over impressions,
+        # and the two only agree when impressions have exactly one click.
+        #
+        # Measured on MIND small test: hit-rate 0.0333 against recall 0.0226, a 1.48x
+        # gap. Impressions that get a hit average 2.280 clicks (against 1.523 overall,
+        # since more clicks means more chances one is retrieved) but only 1.060 of them
+        # are found, so each contributes 0.6775 rather than 1.0. EB-NeRD averages 1.006
+        # clicks per impression, so there the two definitions coincide to 3 decimals.
+        # Mislabelling this cost real time: the MIND number looked like a failure to
+        # reproduce A1 while EB-NeRD matched, which reads as a corpus or config bug.
         clicked = impressions["clicked"].to_list()
         hit = sum(
             bool(set(c) & set(r)) for c, r in zip(clicked, retrieved) if c
         )
-        print(f"    recall@{TOP_K} (full-corpus retrieval): {hit / impressions.height:.4f}")
+        print(f"    hit-rate@{TOP_K} (>=1 clicked article retrieved from the full corpus): "
+              f"{hit / impressions.height:.4f}")
     return timings
 
 
