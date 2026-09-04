@@ -91,6 +91,15 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | Peak RSS, column-pruned batched | 1.7 GB | EB-NeRD test | laptop | A1 | A1-yash | 2026-08 |
 | Peak RSS, `np.vstack(.to_list())` | 5.8 GB to build a 385 MB array | EB-NeRD | laptop | A1 | A1-naman | 2026-08 |
 | 768-d vs 300-d submission cost | 33 m 28 s / 5.9 GB vs 6 m 59 s / 2.7 GB | EB-NeRD | laptop | A1 | A1-naman | 2026-08 |
+| Split build (`src.pipeline.split`) | 41.5 s wall, **peak RSS 9.69 GB** | EB-NeRD small | laptop | `/usr/bin/time -v .venv/bin/python -m src.pipeline.split ebnerd_small` | A2 | 2026-09-04 |
+| Split build | 7.0 s wall, peak RSS 1.28 GB | MIND small | laptop | `/usr/bin/time -v ... -m src.pipeline.split mind_small` | A2 | 2026-09-04 |
+| `make split` all 3 datasets in one process | **OOM-killed (SIGKILL 137)** on a 15 GB box with ~6 GB free | all dev tiers | laptop | `make split` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 12.2 s wall, peak RSS 0.86 GB | EB-NeRD demo | laptop | `/usr/bin/time -f ... -m src.retrieval.bm25 ebnerd_demo` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 100.7 s wall, **peak RSS 7.15 GB** | EB-NeRD small | laptop | `... -m src.retrieval.bm25 ebnerd_small` | A2 | 2026-09-04 |
+| BM25 index + score, all 3 splits | 258.2 s wall, peak RSS 1.96 GB | MIND small | laptop | `... -m src.retrieval.bm25 mind_small` | A2 | 2026-09-04 |
+| Embeddings + FAISS, all 3 splits | 13.5 s wall, peak RSS 1.02 GB | EB-NeRD demo | laptop | `... -m src.retrieval.embeddings ebnerd_demo` | A2 | 2026-09-04 |
+| Embeddings + FAISS, all 3 splits | 88.4 s wall, **peak RSS 7.04 GB** | EB-NeRD small | laptop | `... -m src.retrieval.embeddings ebnerd_small` | A2 | 2026-09-04 |
+| Leakage suite, 19 tests, data present | 28.2 s, 19 passed 0 skipped | all dev tiers | laptop | `make test` | A2 | 2026-09-04 |
 | **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both |  | Q4.2 | A2 | |
 | **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both |  | Q4.3 | A2 | |
 | **Per-component build time and peak RSS** | **TO MEASURE** | tokeniser, BM25, encoder, ANN, feature store, re-ranker |  | Q4 | A2 | |
@@ -107,5 +116,8 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | semantic | 0.5089 | 0.3251 | 0.3538 | 0.4391 | EB-NeRD test | A1-yash |
 | Codabench EB-NeRD | 0.5381 | 0.3521 | 0.3868 | 0.4669 | leaderboard | A1-naman |
 | Codabench MIND | 0.6503 | 0.3198 | 0.3454 | 0.4010 | leaderboard | A1-naman |
+| A1 port re-check: BM25 recall@200 | **0.0248** vs A1's 0.0247 | EB-NeRD small test | `src.retrieval.bm25` | A2 |
+| A1 port re-check: emb recall@200 | **0.0278** vs A1's 0.0277 | EB-NeRD small test | `src.retrieval.embeddings` | A2 |
+| A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce, investigate** | MIND small test | `src.retrieval.bm25` | A2 |
 | **A2 two-stage pipeline** | **TO MEASURE** | | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
