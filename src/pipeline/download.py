@@ -51,6 +51,76 @@ DEFAULT_BUNDLES = (
 )
 
 
+# One TCP connection to the EB-NeRD bucket is slow, and from some hosts it stalls at
+# 0 B/s indefinitely. Measured 2026-09-04: 15.6 KB/s single-stream from the compute
+# cluster, against megabytes/s from a laptop on a home connection. The bucket does
+# honour Range requests, and throughput scales close to linearly with the number of
+# concurrent ranges, so the fix is to ask for many slices at once rather than to retry
+# a single stream that is not actually failing, just crawling.
+PARALLEL_CONNECTIONS = 16
+_MIN_PARALLEL_BYTES = 8 * 1024 * 1024   # below this the setup cost is not worth it
+
+
+def _supports_ranges(url: str) -> "tuple[bool, int]":
+    """Ask for one byte. A server that honours Range answers 206 with a Content-Range."""
+    req = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            if r.status != 206:
+                return False, 0
+            # Content-Range looks like "bytes 0-0/84135301"; the total is after the slash.
+            total = int(r.headers["Content-Range"].split("/")[1])
+            return True, total
+    except Exception:
+        return False, 0
+
+
+def _download_range(url: str, start: int, end: int, path: Path, index: int) -> int:
+    req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{end}"})
+    with urllib.request.urlopen(req, timeout=300) as r, open(path, "wb") as fh:
+        shutil.copyfileobj(r, fh)
+    return index
+
+
+def _fetch_parallel(url: str, tmp: Path, total: int, connections: int) -> None:
+    """Fetch `total` bytes as `connections` concurrent ranges, then concatenate in order."""
+    import concurrent.futures
+
+    parts_dir = tmp.parent / f"{tmp.name}.parts"
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    size = -(-total // connections)          # ceiling division
+    spans = [
+        (i, i * size, min((i + 1) * size - 1, total - 1))
+        for i in range(connections)
+        if i * size < total
+    ]
+    if not spans:
+        raise ValueError(f"nothing to fetch: total={total}, connections={connections}")
+    print(f"  {total / 1e6:.0f} MB over {len(spans)} parallel ranges")
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(spans)) as pool:
+            futures = [
+                pool.submit(_download_range, url, a, b, parts_dir / f"{i:04d}", i)
+                for i, a, b in spans
+            ]
+            done = 0
+            for f in concurrent.futures.as_completed(futures):
+                f.result()                    # re-raise inside the main thread
+                done += 1
+                print(f"\r  ranges complete: {done}/{len(spans)}", end="", flush=True)
+        print()
+        # Concatenate in index order. Order matters and as_completed does not preserve it.
+        with open(tmp, "wb") as out:
+            for i, _, _ in spans:
+                with open(parts_dir / f"{i:04d}", "rb") as chunk:
+                    shutil.copyfileobj(chunk, out)
+        got = tmp.stat().st_size
+        if got != total:
+            raise OSError(f"assembled {got} bytes, expected {total}")
+    finally:
+        shutil.rmtree(parts_dir, ignore_errors=True)
+
+
 def _fetch_ebnerd(name: str) -> Path:
     dest = RAW / "ebnerd" / f"{name}.zip"
     if dest.exists():
@@ -62,9 +132,15 @@ def _fetch_ebnerd(name: str) -> Path:
     # Download to .part and rename only on success. rename is atomic, so an interrupted
     # download can never leave a truncated file that looks complete on the next run.
     tmp = dest.with_suffix(".zip.part")
-    with urllib.request.urlopen(url) as response, open(tmp, "wb") as fh:
-        # copyfileobj streams in chunks, so a 1.6 GB bundle never sits in memory at once.
-        shutil.copyfileobj(response, fh)
+
+    ranged, total = _supports_ranges(url)
+    if ranged and total >= _MIN_PARALLEL_BYTES:
+        _fetch_parallel(url, tmp, total, PARALLEL_CONNECTIONS)
+    else:
+        with urllib.request.urlopen(url) as response, open(tmp, "wb") as fh:
+            # copyfileobj streams in chunks, so a 1.6 GB bundle never sits in memory at once.
+            shutil.copyfileobj(response, fh)
+
     tmp.rename(dest)
     return dest
 
