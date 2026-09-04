@@ -40,6 +40,9 @@ MIND_BUNDLES = (
 )
 MIND_GATE_URL = f"https://huggingface.co/datasets/{MIND_REPO}"
 
+# Seconds without a byte arriving before a fetch is treated as dead rather than slow.
+READ_TIMEOUT = 60
+
 # Both EB-NeRD encoders the assignment names: word2vec is what the pipeline uses,
 # bert_base_multilingual_cased is needed only to reproduce the ablation that chose it.
 DEFAULT_BUNDLES = (
@@ -62,7 +65,11 @@ def _fetch_ebnerd(name: str) -> Path:
     # Download to .part and rename only on success. rename is atomic, so an interrupted
     # download can never leave a truncated file that looks complete on the next run.
     tmp = dest.with_suffix(".zip.part")
-    with urllib.request.urlopen(url) as response, open(tmp, "wb") as fh:
+    # The timeout is per-read, not for the whole transfer, and it is not optional: without
+    # one, a stalled connection to this bucket leaves urlopen blocked forever with the
+    # .part file frozen at whatever it had, and the download looks like it is still working.
+    # Observed on 2026-09-04, where the bucket served ~28 KB/s and then simply stopped.
+    with urllib.request.urlopen(url, timeout=READ_TIMEOUT) as response, open(tmp, "wb") as fh:
         # copyfileobj streams in chunks, so a 1.6 GB bundle never sits in memory at once.
         shutil.copyfileobj(response, fh)
     tmp.rename(dest)
