@@ -28,8 +28,8 @@ EB-NeRD and MIND describe the same thing in different shapes. Everything downstr
 Article ids are strings in both datasets so the two share a schema; EB-NeRD's integer
 ids are cast on the way in.
 
-    python -m pipeline.split                # both datasets
-    python -m pipeline.split ebnerd_demo
+    python -m src.pipeline.split                # both datasets
+    python -m src.pipeline.split ebnerd_demo
 """
 
 import argparse
@@ -39,7 +39,7 @@ from pathlib import Path
 import polars as pl
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 OUT = ROOT / "data/processed"
 

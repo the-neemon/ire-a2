@@ -16,9 +16,9 @@ Article vectors come from whichever source the dataset has:
   MIND     encoded here with a sentence-transformers model (config `model`) and cached
            to data/processed/<dataset>/embeddings.parquet, so encoding happens once
 
-    python -m retrieval.embeddings
-    python -m retrieval.embeddings mind_small --splits test
-    python -m retrieval.embeddings ebnerd_demo --embeddings <other.parquet>   # encoder ablation
+    python -m src.retrieval.embeddings
+    python -m src.retrieval.embeddings mind_small --splits test
+    python -m src.retrieval.embeddings ebnerd_demo --embeddings <other.parquet>   # encoder ablation
 
 Writes, per dataset and split:
     emb_<split>.parquet            impression_id, emb        aligned to `candidates`
@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 from src.retrieval.bm25 import OVERFETCH, TOP_K
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
 

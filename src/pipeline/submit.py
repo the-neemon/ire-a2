@@ -6,9 +6,9 @@ this cannot reuse `retrieval/embeddings.py`, which materialises every impression
 The scoring *semantics* are identical (mean of the last `history_len` article vectors,
 L2-normalised, cosine against each candidate); only the execution is streamed.
 
-    python -m pipeline.submit ebnerd            -> submissions/ebnerd_predictions.zip
-    python -m pipeline.submit mind              -> submissions/mind_prediction.zip
-    python -m pipeline.submit ebnerd --limit 50000     smoke test on a prefix
+    python -m src.pipeline.submit ebnerd            -> submissions/ebnerd_predictions.zip
+    python -m src.pipeline.submit mind              -> submissions/mind_prediction.zip
+    python -m src.pipeline.submit ebnerd --limit 50000     smoke test on a prefix
 
 Format, from each competition's Submission Guidelines (fetched from the Codabench API):
 
@@ -43,10 +43,10 @@ import polars as pl
 import yaml
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 INTERIM = ROOT / "data/interim"
-OUT = ROOT / "deliverable/submissions"
+OUT = ROOT / "submissions"
 
 # Impressions per streamed slice. Peak memory is one slice, not the dataset.
 BATCH = 200_000

@@ -13,8 +13,8 @@ Both tracks come out of a single scoring pass. Queries are deduplicated first â€
 is constant per user within a split, so the ~230k MIND impressions collapse to far fewer
 distinct queries, and BM25 runs once per distinct query rather than once per impression.
 
-    python -m retrieval.bm25                       # both datasets, all splits
-    python -m retrieval.bm25 ebnerd_demo --fields title
+    python -m src.retrieval.bm25                       # both datasets, all splits
+    python -m src.retrieval.bm25 ebnerd_demo --fields title
 
 Writes, per dataset and split:
     bm25_<split>.parquet       impression_id, bm25        aligned to `candidates`
@@ -32,7 +32,7 @@ import Stemmer
 import yaml
 from tqdm import tqdm
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
 

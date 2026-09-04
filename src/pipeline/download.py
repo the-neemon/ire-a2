@@ -3,8 +3,8 @@
 Idempotent: a bundle is skipped if its extract directory already holds a .done marker,
 so re-running costs nothing.
 
-    python -m pipeline.download
-    python -m pipeline.download ebnerd_small
+    python -m src.pipeline.download
+    python -m src.pipeline.download ebnerd_small
 """
 
 import argparse
@@ -14,7 +14,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent.parent / "data"
+DATA = Path(__file__).resolve().parent.parent.parent / "data"
 RAW = DATA / "raw"
 INTERIM = DATA / "interim"
 

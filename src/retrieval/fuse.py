@@ -11,8 +11,8 @@ alpha is chosen on **val** and applied unchanged to test. Choosing it on test wo
 hyper-parameter on the reported number and quietly invalidate it — the same temporal
 hygiene the split enforces for features.
 
-    python -m retrieval.fuse
-    python -m retrieval.fuse ebnerd_demo
+    python -m src.retrieval.fuse
+    python -m src.retrieval.fuse ebnerd_demo
 
 Writes, per dataset and split:
     fused_<split>.parquet   impression_id, fused   aligned to `candidates`
@@ -27,7 +27,7 @@ import numpy as np
 import polars as pl
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
 
