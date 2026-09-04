@@ -126,11 +126,24 @@ def _fetch_parallel(url: str, tmp: Path, total: int, connections: int) -> None:
 
 def _fetch_ebnerd(name: str) -> Path:
     dest = RAW / "ebnerd" / f"{name}.zip"
-    if dest.exists():
-        return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
     prefix = "artifacts/" if name in EBNERD_ARTIFACTS else ""
     url = f"{EBNERD_BASE}/{prefix}{name}.zip"
+
+    # Trust an existing archive only if its size matches what the bucket reports.
+    # The .part-then-rename dance protects downloads made here, but anything else
+    # that writes to the final name (an scp that stalled, a copy between machines,
+    # a killed job on a different code path) leaves a truncated file that looks
+    # complete. That then fails later and further away, as BadZipFile in _extract,
+    # where the cause is no longer visible. Cheap check, one HEAD request.
+    if dest.exists():
+        _, expected = _supports_ranges(url)
+        actual = dest.stat().st_size
+        if expected and actual != expected:
+            print(f"  {dest.name} is {actual:,} bytes, expected {expected:,}; refetching")
+            dest.unlink()
+        else:
+            return dest
     print(f"  downloading {url}")
     # Download to .part and rename only on success. rename is atomic, so an interrupted
     # download can never leave a truncated file that looks complete on the next run.
