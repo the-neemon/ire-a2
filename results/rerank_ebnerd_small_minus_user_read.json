@@ -1,0 +1,28 @@
+{
+  "tag": "minus_user_read",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_scroll",
+    "engage_sim"
+  ],
+  "best_iteration": 134,
+  "val_auc": 0.7567290222644832,
+  "test_auc": 0.744172160683764,
+  "importance": {
+    "pop_causal": 586002.4937877655,
+    "engage_sim": 149099.0464401245,
+    "age_hours": 146384.12811279297,
+    "recency": 133726.5668449402,
+    "cat_match": 74146.59441566467,
+    "emb": 30990.66205596924,
+    "hist_len": 23341.010469436646,
+    "bm25": 22958.753776550293,
+    "user_scroll": 3207.675901412964
+  }
+}

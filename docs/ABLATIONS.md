@@ -233,3 +233,67 @@ Re-measure before quoting. Kept here because they define what is already known a
 collection period, so they embed the future and cannot be computed at serving time. No shipped scorer
 reads them. The last row is the counterintuitive companion result: the pool the log showed is already
 popularity-filtered, so within it, being popular is mildly anti-predictive.
+
+
+---
+
+## Q1 + Q2: behavioural features and the two-stage re-ranker (EB-NeRD small)
+
+LightGBM lambdarank over 10 per-candidate features, stage one unchanged. Selection on val,
+test scored once. Metric is **per-impression AUC**, averaged over the 64,365 val impressions
+that contain both classes; pooled AUC is not used and the reason is a row below. Each arm
+removes exactly one feature and retrains. CIs are paired bootstrap, 1000 resamples, shared
+across arms, seed 13.
+
+**Full model: val 0.7575, test 0.7429.**
+
+| arm | val AUC | full - arm | 95% CI | significant |
+|---|---|---|---|---|
+| stage1_only (bm25 + emb) | 0.5498 | **+0.2077** | [+0.2048, +0.2107] | yes |
+| pop_only (pop_causal alone) | 0.6954 | +0.0620 | [+0.0602, +0.0639] | yes |
+| minus pop_causal | 0.7228 | +0.0346 | [+0.0330, +0.0363] | yes |
+| minus engage_sim | 0.7489 | +0.0085 | [+0.0075, +0.0096] | yes |
+| minus emb | 0.7532 | +0.0043 | [+0.0035, +0.0050] | yes |
+| minus cat_match | 0.7537 | +0.0038 | [+0.0028, +0.0048] | yes |
+| minus hist_len | 0.7555 | +0.0019 | [+0.0014, +0.0025] | yes |
+| minus bm25 | 0.7561 | +0.0014 | [+0.0008, +0.0020] | yes |
+| minus user_scroll | 0.7565 | +0.0009 | [+0.0005, +0.0014] | yes |
+| minus user_read | 0.7567 | +0.0007 | [+0.0002, +0.0013] | yes |
+| minus age_hours | 0.7572 | +0.0003 | [-0.0002, +0.0007] | **no** |
+| minus recency | 0.7574 | +0.0001 | [-0.0003, +0.0006] | **no** |
+
+### What the table says
+
+**The behavioural axis is worth +0.2077 AUC over stage one alone.** That is larger than every
+Assignment-1 result combined and it is the answer to "what did adding click-log signal buy".
+
+**Causally valid popularity is most of it.** Alone it reaches 0.6954, above any complete A1
+system. Removing it from the full set costs 0.0346, the largest single-feature contribution.
+The +0.075 that *leaky* lifetime popularity bought in A1 therefore largely survives the causal
+restriction, which was the open question that motivated the feature.
+
+**Engagement weighting beats uniform pooling.** `engage_sim` (history embeddings weighted by
+`log1p(read_time_fixed)`) is worth +0.0085 over the full set, and standalone it scores 0.5774
+against `emb`'s 0.5506 on identical rows. Same computation, different weights, so it is a clean
+one-variable comparison. Neither A1 system used the read-time column at all.
+
+**Gain is not contribution, and this is the row to remember.** `recency` has the third-highest
+LightGBM gain (161,327, behind only pop_causal and engage_sim) yet removing it changes the
+metric by +0.0001, CI [-0.0003, +0.0006], indistinguishable from zero. `age_hours` is the same
+story. The model does split on them, but the information is available elsewhere (a fresh article
+has had less time to accumulate clicks, so `pop_causal` already encodes most of it). Reporting
+importance instead of an ablation delta would have claimed a contribution that is not there.
+
+**Pooled AUC systematically overstates features that vary across impressions rather than within
+them.** Measured on val: `recency` reads 0.5861 pooled but 0.5087 per impression; `user_read`
+and `hist_len` are constant within an impression and score exactly 0.5000 per impression while
+reading 0.4868 and 0.5154 pooled. Candidates inside one impression are all roughly the same age,
+so the pooled number was measuring cross-impression variation, which the ranking is not judged
+on. Same class as the hit-rate vs recall gap: one metric name, two definitions.
+
+### Not yet done
+
+MIND has no `published_time`, no per-click history timestamps and no engagement columns, so
+`recency`, `age_hours`, `engage_sim`, `user_read` and `user_scroll` cannot be computed there.
+Per `info.md`'s fairness note the two datasets get explicitly separate feature sets rather than
+one system quietly running with zeros on half its inputs. The MIND arm is a separate row, unrun.

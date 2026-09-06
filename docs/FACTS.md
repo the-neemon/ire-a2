@@ -161,7 +161,10 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | A1 port re-check: emb recall@200 | 0.0354 vs A1's 0.0239, **does not reproduce** | MIND small test | `src.retrieval.embeddings` | A2 |
 | | | | | |
 | ~~Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.~~ **Resolved 2026-09-04: two different metrics, not a corpus or config difference.** `src.retrieval.bm25` printed a hit-rate under the label recall. | | MIND small test | see below | A2 |
-| **A2 two-stage pipeline** | **TO MEASURE** | | | | both | A2 |
+| A2 two-stage re-ranker, full | **0.7575** | | | val, EB-NeRD small | A2 |
+| A2 two-stage re-ranker, full | **0.7429** | | | test, EB-NeRD small | A2 |
+| A2 stage one alone (bm25+emb) | 0.5498 | | | val, EB-NeRD small | A2 |
+| **A2 two-stage pipeline, MIND** | **TO MEASURE** | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
 
 ### Resolved: the MIND "recall@200 does not reproduce" gap was a mislabelled metric
