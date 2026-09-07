@@ -65,6 +65,9 @@ Every number we report is recorded where it was produced, with the command that 
 - **[docs/FACTS.md](docs/FACTS.md)**: one row per measured number. Value, scope, method, source, date.
 - **[docs/ABLATIONS.md](docs/ABLATIONS.md)**: one row per experiment, **including rejected ones**.
   Hypothesis, delta, paired bootstrap 95% CI, cost, verdict.
+- **[docs/REPORT-NOTES.md](docs/REPORT-NOTES.md)**: the narrative view the design note draws
+  from. Same numbers as the two ledgers, organised as an argument rather than a log. If it
+  disagrees with a ledger, the ledger wins.
 
 A number in the design note with no row in `FACTS.md` is a number we cannot defend.
 
