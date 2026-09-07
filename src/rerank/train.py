@@ -45,9 +45,9 @@ NUM_ROUNDS = 400
 EARLY_STOPPING = 40
 
 
-def load(name: str, split: str, features: list[str]):
+def load(name: str, split: str, features: list[str], source: str = "features"):
     """Rows must stay grouped by impression: lambdarank ranks within a group, not globally."""
-    f = pl.read_parquet(PROC / name / f"features_{split}.parquet").sort("impression_id")
+    f = pl.read_parquet(PROC / name / f"{source}_{split}.parquet").sort("impression_id")
     groups = f.group_by("impression_id", maintain_order=True).len()["len"].to_numpy()
     X = f.select(features).to_numpy().astype(np.float32)
     y = f["label"].to_numpy().astype(np.int8)
@@ -71,10 +71,10 @@ def per_impression_auc(f: pl.DataFrame, score: np.ndarray) -> float:
     return float(auc.mean())
 
 
-def run(name: str, features: list[str], tag: str) -> dict:
+def run(name: str, features: list[str], tag: str, source: str = "features") -> dict:
     print(f"\n{name}  [{tag}]  {len(features)} features: {', '.join(features)}")
-    ftr, Xtr, ytr, gtr = load(name, "train", features)
-    fva, Xva, yva, gva = load(name, "val", features)
+    ftr, Xtr, ytr, gtr = load(name, "train", features, source)
+    fva, Xva, yva, gva = load(name, "val", features, source)
 
     dtr = lgb.Dataset(Xtr, label=ytr, group=gtr, feature_name=features)
     dva = lgb.Dataset(Xva, label=yva, group=gva, feature_name=features, reference=dtr)
@@ -87,7 +87,7 @@ def run(name: str, features: list[str], tag: str) -> dict:
     out = {"tag": tag, "features": features, "best_iteration": model.best_iteration}
     scores = {}
     for split in ("val", "test"):
-        f, X, y, _ = load(name, split, features)
+        f, X, y, _ = load(name, split, features, source)
         s = model.predict(X, num_iteration=model.best_iteration)
         scores[split] = (f, s)
         out[f"{split}_auc"] = per_impression_auc(f, s)
