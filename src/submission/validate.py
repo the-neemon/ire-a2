@@ -46,8 +46,11 @@ def truth_rows(target: str) -> tuple[list[int], list[int]]:
         return (df["impression_id"].cast(pl.Int64).to_list(),
                 [len(s.split()) for s in df["impressions"].to_list()])
 
+    # behaviors.parquet is nested under test/ in this bundle, matching what
+    # src.pipeline.submit.stream_ebnerd reads. Kept in step with it deliberately: a
+    # validator that reads a different file from the writer validates nothing.
     root = INTERIM / "ebnerd_testset/ebnerd_testset"
-    df = pl.read_parquet(root / "behaviors.parquet",
+    df = pl.read_parquet(root / "test/behaviors.parquet",
                          columns=["impression_id", "article_ids_inview"])
     return (df["impression_id"].cast(pl.Int64).to_list(),
             df["article_ids_inview"].list.len().to_list())
