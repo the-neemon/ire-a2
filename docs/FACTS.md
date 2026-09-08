@@ -549,12 +549,18 @@ Machine: laptop, 2026-09-08.
 
 | | MIND (Codabench 13967) | EB-NeRD (RecSys 2024) |
 |---|---|---|
-| impressions written | **2,370,727** | pending |
+| impressions written | **2,370,727** | **13,536,710** |
 | articles | 120,961 | 125,500 |
 | scorer | MiniLM 384-d + entity blend a=0.20 | `contrastive_vector` 768-d |
-| archive | `mind_prediction.zip`, 107.3 MB | `ebnerd_predictions.zip` |
+| archive | `mind_prediction.zip`, 107.3 MB | `ebnerd_predictions.zip`, 230.0 MB |
 | inner filename | `prediction.txt` (singular) | `predictions.txt` (plural) |
-| validated | **yes**, all checks | pending |
+| validated | **yes**, all checks | **yes**, all checks |
+
+Build cost, EB-NeRD full test set, laptop: **6 m 28 s wall, peak RSS 5.90 GB** for 13,536,710
+impressions, about 34,900 impressions/s. Peak RSS stays flat against dataset size because the
+stream reads in slices; the 5.90 GB is dominated by the 125,500 x 768 float32 article matrix,
+not by the impressions. A1 measured 13 m 30 s for the same set with 768-d vectors, so this is
+roughly 2x faster on the same machine.
 
 Article encoding for MIND large test: 120,961 articles, MiniLM on CPU, cached to
 `data/processed/mindlarge_test_embeddings.npy` so a rebuild does not re-encode. Entity blend
