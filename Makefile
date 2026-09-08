@@ -67,7 +67,7 @@ results: rerank
 # A2 Q4. Index memory, p99 single-request latency, cost/QPS at an SLA. Every number
 # this emits belongs in docs/FACTS.md with the command that produced it.
 bench:
-	@echo "TODO: src/eval/bench not implemented yet"
+	$(PY) -m src.eval.bench ebnerd_small --requests 2000 --scale-points 0.1 0.25 0.5 1.0
 
 # A2 Q3.3. Every ablation, each isolating one change, each with a paired bootstrap
 # 95% CI. Results go to docs/ABLATIONS.md whether they win or lose.
