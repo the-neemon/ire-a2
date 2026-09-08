@@ -89,9 +89,13 @@ A2 Q4.1 requires measured footprints, so every `TO MEASURE` row below is graded 
 | BM25 vocabulary, title+abstract, unstemmed | 43,451 terms | EB-NeRD small | `... --ablation stemming` | A2 | 2026-09-08 |
 | Danish stemming vocabulary saving | 30.1% (43,451 -> 30,388) | EB-NeRD small | as above | A2 | 2026-09-08 |
 | English stemming vocabulary saving | 27.3% (60,914 -> 44,264) | MIND small | as above | A2 | 2026-09-04 |
-| **Index RAM footprint** | **TO MEASURE** | every index, both datasets | Q4.1 | A2 | |
-| **Index on-disk footprint** | **TO MEASURE** | every index, both datasets | Q4.1 | A2 | |
-| **Feature store footprint** | **TO MEASURE** | both | Q4.1 | A2 | |
+| BM25 index RAM | 7.0 MiB (2.5 MiB CSR arrays + ~4.5 MiB vocab dict) | EB-NeRD small, 297,145 postings / 30,388 terms | `python -m src.eval.bench ebnerd_small` | A2 | 2026-09-08 |
+| BM25 index on disk | 3.0 MiB (`bm25s` save) | EB-NeRD small | same | A2 | 2026-09-08 |
+| FAISS index RAM | 60.8 MiB = 20,738 x 768 x 4 B exactly | EB-NeRD small | same | A2 | 2026-09-08 |
+| FAISS index on disk | 60.8 MiB (`faiss.write_index`) | EB-NeRD small | same | A2 | 2026-09-08 |
+| Feature store RAM | 294.5 MiB materialised | EB-NeRD small, 5,514,689 candidate rows x 10 features | same | A2 | 2026-09-08 |
+| Feature store on disk | 115.7 MiB parquet | EB-NeRD small | same | A2 | 2026-09-08 |
+| **Index footprints, MIND** | **TO MEASURE** | MIND small | Q4.1 | A2 | |
 
 ## 5. Latency, throughput, memory
 
@@ -136,9 +140,20 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | Embeddings + FAISS, all 3 splits | 88.4 s wall, **peak RSS 7.04 GB** | EB-NeRD small | laptop | `... -m src.retrieval.embeddings ebnerd_small` | A2 | 2026-09-04 |
 | Embeddings: MiniLM encode 65,238 articles + FAISS, all 3 splits | 967.8 s wall (16 m 8 s), peak RSS 2.50 GB | MIND small | laptop | `/usr/bin/time -f ... -m src.retrieval.embeddings mind_small` | A2 | 2026-09-04 |
 | Leakage suite, 19 tests, data present | 28.2 s, 19 passed 0 skipped | all dev tiers | laptop | `make test` | A2 | 2026-09-04 |
-| **p50 / p95 / p99 single-request latency** | **TO MEASURE** | candidate gen + re-rank, both |  | Q4.2 | A2 | |
-| **Cost per 1000 queries at p99 < 100 ms** | **TO MEASURE** | both |  | Q4.3 | A2 | |
-| **Per-component build time and peak RSS** | **TO MEASURE** | tokeniser, BM25, encoder, ANN, feature store, re-ranker |  | Q4 | A2 | |
+| **Single-request latency, end to end** | **p50 22.06 ms / p95 48.94 ms / p99 64.90 ms**, max 90.75 ms | EB-NeRD small val, 2,000 unbatched requests | laptop, 8 physical / 12 logical cores | `python -m src.eval.bench ebnerd_small --requests 2000` | A2 | 2026-09-08 |
+| Latency by stage, p50 | tokenise 0.70 / bm25 1.36 / **ann 13.55** / features 0.32 / rerank 5.02 ms | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Latency by stage, p99 | tokenise 3.13 / bm25 8.16 / **ann 45.41** / features 1.18 / rerank 29.47 ms | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| ANN share of p50 | 61% of end-to-end | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| SLA verdict | p99 64.90 ms against a 100 ms target: **meets**, 1.5x headroom | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Serial throughput, one core | 45 QPS | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Whole-box capacity | 363 QPS over 8 physical cores, **projected** (assumes linear scaling) | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Cost per 1000 queries | $0.000245, **projected** at an assumed $0.040/vCPU-hour | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Scaling, ann p50 vs corpus | 0.59 -> 11.39 ms for 2,074 -> 20,738 articles: **19.4x for 10x**, super-linear | EB-NeRD small | laptop | `--scale-points 0.1 0.25 0.5 1.0` | A2 | 2026-09-08 |
+| Scaling, flat stages | rerank 3.9x, features 2.4x for the same 10x corpus | EB-NeRD small | laptop | same | A2 | 2026-09-08 |
+| Per-stage peak RSS, batch pipeline | bm25 6.82 GB / embeddings 6.79 GB / fuse 5.65 GB / features 3.87 GB / rerank train 1.41 GB | EB-NeRD small, all 3 splits | laptop | `/usr/bin/time -v` per stage | A2 | 2026-09-08 |
+| Per-stage wall time, batch pipeline | bm25 2:38 / embeddings 2:38 / fuse 2:01 / features 5:37 / rerank train 1:20 | EB-NeRD small, all 3 splits | laptop | same | A2 | 2026-09-08 |
+| Serving-path build costs | BM25 index 0.83 s, vector load 2.17 s, FAISS build 0.04 s, re-ranker train 97.8 s (311 trees) | EB-NeRD small | laptop | `python -m src.eval.bench ebnerd_small` | A2 | 2026-09-08 |
+| **Latency and footprints, MIND** | **TO MEASURE** | MIND small | | Q4.2 | A2 | |
 
 ## 6. Accuracy (A1 shipped systems, for the Q3 baseline comparison)
 
@@ -346,3 +361,42 @@ test: both significant, opposite signs. This reproduces the A1 finding including
 The alpha is selected on val by rule and applied unchanged, so it is a real generalisation
 failure across the split boundary, not a selection artefact. Stage two makes it moot in
 practice, since `rerank` beats `fused` by +0.2047 either way.
+
+## 9. Q4: what breaks first at 10x, and the machine caveat (A2)
+
+Full report in `results/bench_ebnerd_small.md`. Machine: laptop, **8 physical / 12 logical
+cores**, 15.3 GB RAM, no GPU.
+
+**Correction to the environment note.** `CLAUDE.md` describes this machine as "20 cores".
+`psutil` and `nproc` both report 12 logical and 8 physical. Every capacity figure here uses 8,
+the physical count, because this path is dense float work in BLAS and LightGBM where a
+hyperthread shares an execution port and adds much less than a real core. Anything previously
+scaled by 20 is overstated by 2.5x.
+
+**`ann` is the bottleneck and it breaks first.** It is 61% of p50 at full corpus and its cost
+grows **19.4x for a 10x corpus**, which is super-linear where `IndexFlatIP` should be at worst
+linear. The excess is the memory hierarchy: 6.1 MiB of vectors at the smallest scale is
+cache-resident, 60.8 MiB at full scale is not, so each query goes from cache to streaming from
+RAM. At 10x the catalogue this is a bandwidth problem, not a FLOPs problem.
+
+**This overturns A1's answer.** A1 concluded the per-impression Python loop was the bottleneck
+rather than the linear algebra. With stage two in the path that is no longer true: every
+Python-side stage is roughly flat in corpus size, so its share shrinks as the catalogue grows.
+Making the re-ranker faster buys nothing at scale. The only lever that matters is replacing the
+exact index with an approximate one, which is the ANN row A1 measured and rejected as
+"10 to 20x faster but exact search was never the bottleneck at this scale" and explicitly
+flagged to revisit at 10x catalogue. This is that revisit, and it now says the opposite.
+
+**Known limitation in the scaling curve, disclosed rather than buried.** Subsampling the corpus
+also shortens the query, because the query is built from history titles and a subsampled-out
+article contributes none. Measured: the mean number of last-30 history items still resolving to
+a title falls 29.2 -> 2.3 between full corpus and 10%. So the `tokenise` and `bm25` growth
+factors conflate two variables and are upper bounds on the corpus effect, not estimates of it.
+`ann` is unaffected, since a FAISS scan costs vectors x dim whatever the query contains, so the
+stage the verdict rests on is measured cleanly. Isolating the other two needs a bench that holds
+the query fixed while shrinking only the index.
+
+**Run-to-run variance.** Two full bench runs an hour apart gave end-to-end p99 of 78.16 ms and
+64.90 ms, and re-ranker training of 47.5 s and 97.8 s, on an otherwise-busy laptop. The second
+run is the recorded one. Treat single-run timings from this machine as good to roughly +/-20%,
+and never compare a number from here against one from the cluster.
