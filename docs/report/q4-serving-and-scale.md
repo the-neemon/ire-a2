@@ -1,6 +1,6 @@
 # Q4: serving, cost and what breaks at 10x
 
-*Owner: Yash. All numbers `Machine: laptop`, 8 physical / 12 logical cores, 15.3 GB RAM, no GPU.
+*Owner: Yash. All numbers `Machine: laptop-yash`, 8 physical / 12 logical cores, 15.3 GB RAM, no GPU.
 Source `results/bench_ebnerd_small.md`, ledger `docs/FACTS.md` section 9. Reproduce with
 `make bench`.*
 
@@ -102,9 +102,12 @@ Isolating the other two needs a bench that holds the query fixed while shrinking
 end-to-end p99 of 78.16 ms and 64.90 ms, and re-ranker training of 47.5 s and 97.8 s. The second
 is the recorded run. Treat single-run timings from here as good to roughly ±20%.
 
-**A correction to the project's environment note.** `CLAUDE.md` describes this machine as 20
-cores; `psutil` and `nproc` both report 12 logical and 8 physical. Any capacity figure previously
-scaled by 20 is overstated by 2.5x.
+**Two machines, not one wrong core count.** An earlier draft recorded this as a correction to
+the project's environment note, which describes the laptop as 20 cores. The two are different
+boxes: the note describes an i7-13700H with 14 physical and 20 logical cores, while every number
+in this section ran on a machine reporting 8 physical and 12 logical. Nothing needs rescaling.
+What matters for reading this section is that its figures are specific to the 8-core box and do
+not transfer to the other one.
 
 **Coverage.** Everything here is EB-NeRD. MIND has no locally built feature store or re-ranker, so
 its footprints, latency and cost per 1000 queries are unmeasured rather than estimated.

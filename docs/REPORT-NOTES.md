@@ -356,12 +356,15 @@ is not done until a violation has been injected and watched to fail.
 
 ## 7. Serving and scale (Q4)
 
-### 7.1 Measured, laptop (**8 physical / 12 logical cores**, no GPU, 15.3 GB RAM)
+### 7.1 Measured, laptop-yash (**8 physical / 12 logical cores**, no GPU, 15.3 GB RAM)
 
-**Correction.** `CLAUDE.md` describes this machine as "20 cores". `psutil` and `nproc` both
-report 12 logical and 8 physical. Capacity below is priced off 8, the physical count, because
+**Not a correction, two different machines.** This was filed as a correction to `CLAUDE.md`'s
+"20 cores". That note describes laptop-naman, an i7-13700H with 14 physical and 20 logical
+cores, and 20 is right for it. These numbers ran on laptop-yash, which reports 8 physical and
+12 logical. Capacity below is priced off 8, the physical count of the machine it ran on, because
 this path is dense float work in BLAS and LightGBM where a hyperthread shares an execution port
-and adds much less than a real core. **Anything previously scaled by 20 is overstated by 2.5x.**
+and adds much less than a real core. Nothing earlier needs rescaling: no prior figure was
+scaled by this box's core count.
 
 | stage | dataset | wall | peak RSS |
 |---|---|---|---|
