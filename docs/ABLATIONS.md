@@ -32,11 +32,11 @@ a flag and measure it against the system without it.
 | 4 | GBDT re-ranker over engineered features beats single-signal ranking (Q2) | both | | | | planned |
 | 5 | Hybrid BM25 + semantic with a `history_len` router beats either alone | both | | | | planned |
 | 6 | Per-language stemming: Snowball Danish on, English off | MIND | see 6a | | vocab 44,264 -> 60,914; build 5.2 -> 4.1 s | **rejected** |
-| 6 | Per-language stemming: Snowball Danish on, English off | EB-NeRD demo | see 6b | | vocab 22,105 -> 31,515; build 0.9 -> 0.6 s | **inconclusive** |
-| 6 | Per-language stemming, re-measured at 10x | EB-NeRD small | | | | planned |
+| 6 | Per-language stemming: Snowball Danish on, English off | EB-NeRD demo | see 6b | | vocab 22,105 -> 31,515; build 0.9 -> 0.6 s | **inconclusive** (underpowered) |
+| 6 | Per-language stemming, re-measured at 10x | EB-NeRD small | see 6c | | vocab 30,388 -> 43,451; scoring 19.2 -> 23.6 s | **rejected**, keep stemming on |
 | 7 | BM25 documents title-only rather than title + abstract | MIND | see 7a | | vocab 44,264 -> 24,681; build 4.5 -> 1.9 s | **shipped-pending** |
-| 7 | BM25 documents title-only rather than title + abstract | EB-NeRD demo | see 7b | | vocab 22,105 -> 10,738; build 0.7 -> 0.5 s | **rejected** |
-| 7 | Field choice, re-measured at 10x | EB-NeRD small | | | | planned |
+| 7 | BM25 documents title-only rather than title + abstract | EB-NeRD demo | see 7b | | vocab 22,105 -> 10,738; build 0.7 -> 0.5 s | **rejected** (underpowered) |
+| 7 | Field choice, re-measured at 10x | EB-NeRD small | see 7c | | vocab 30,388 -> 15,132; build 1.0 -> 0.6 s | **verdict reversed**: trade-off, AUC-favourable |
 | 9 | Re-sweep `history_len` after 2 and 7 land | both | | | | planned |
 | 10 | Better MIND article vectors than 87%-coverage mean-pooled entities | MIND | | | | planned |
 | 11 | Q3 required: one principled improvement over the reproduced NRMS baseline | both | | | | planned |
@@ -170,13 +170,110 @@ its central claim, which is the one that keeps recurring across both A1 systems 
 **more text helps retrieval and hurts re-ranking.** The two datasets want opposite settings for
 the same knob, which is precisely why the field is worth making per-dataset rather than global.
 
+### 6c and 7c — the same two ablations at `ebnerd_small`, 10x scale, measured 2026-09-08
+
+The EB-NeRD verdicts above were demo scale: 11,777 articles, 6,872 val impressions, with
+intervals three to five times wider than MIND's. `README.md` excludes demo from reported
+numbers, so these are the rows that count. `ebnerd_small` is 20,738 articles and 64,365 val /
+244,647 test impressions. Machine: laptop. Reports under `results/ablation_bm25_ebnerd_small_*`.
+
+**The demo rows are kept above, relabelled `underpowered` rather than deleted.** They are the
+evidence for the methodological point that follows, and deleting a superseded measurement
+destroys that.
+
+#### 7c. EB-NeRD small, documents title-only — **the demo verdict reverses**
+
+Delta of dropping `abstract`, baseline is title + abstract.
+
+| split | AUC | MRR | nDCG@10 | recall@200 |
+|---|---|---|---|---|
+| val | **+0.0025** [+0.0002, +0.0047] | +0.0019 [-0.0001, +0.0039] | **+0.0021** [+0.0004, +0.0039] | **-0.0024** [-0.0035, -0.0013] |
+| test | **+0.0043** [+0.0031, +0.0055] | **+0.0024** [+0.0014, +0.0034] | **+0.0021** [+0.0012, +0.0030] | -0.0005 [-0.0011, +0.0001] |
+
+At demo scale this was **rejected**: AUC +0.0009 [-0.0062, +0.0081], indistinguishable from
+zero, against a significant recall loss. Paying real recall for nothing is a bad trade, and
+that was the right call on the evidence then available.
+
+At 10x the AUC gain is **+0.0025 and significant**, and the demo interval turns out to have
+contained it comfortably. So the demo result was not a different effect, it was the same effect
+measured too imprecisely to see. The verdict changes from *rejected* to **a genuine two-sided
+trade-off**: on val, every ranking metric gains significantly and recall@100/@200 lose
+significantly. On test the ranking gains hold and grow while the recall losses stop being
+significant at all.
+
+**This reproduces the A1 EB-NeRD prior to four decimals on both axes at once.** A1 measured
++0.0025 AUC and -0.0024 recall@200; val here gives +0.0025 and -0.0024. Two independent
+systems, different codebases, agreeing to that precision on a two-sided trade-off is the
+strongest single piece of cross-validation in this file.
+
+*Does EB-NeRD show MIND's AUC/MRR split?* **No.** On MIND, title-only won AUC while
+significantly losing MRR (-0.0022 [-0.0039, -0.0005]), contradicting A1's "no measured
+downside". On EB-NeRD small, MRR moves the *same* way as AUC: +0.0019 on val (not significant)
+and **+0.0024 on test (significant)**. So the MIND MRR loss is a property of MIND, not of
+dropping the abstract, and the two datasets differ in *which* metric pays the cost: MIND pays in
+MRR, EB-NeRD pays in retrieval recall. Both were invisible without a paired CI per metric.
+
+Cost, cheaper on both axes: vocabulary 30,388 -> 15,132, index build 1.0 s -> 0.6 s.
+
+Still **`shipped-pending`**, and the config still ships `title_abstract`. The measurement now
+supports the change on ranking metrics for both datasets, but it costs stage-one recall on
+EB-NeRD val, and Q2's re-ranker consumes exactly that recall. That makes it a pipeline-level
+decision rather than a retrieval-level one, and it is the team's to take.
+
+#### 6c. EB-NeRD small, Danish stemming — **the A1 prior does not reproduce, now conclusively**
+
+Delta of turning stemming **off**, baseline is stemming on.
+
+| split | AUC | MRR | nDCG@10 | recall@200 |
+|---|---|---|---|---|
+| val | -0.0003 [-0.0019, +0.0014] | +0.0004 [-0.0011, +0.0019] | +0.0003 [-0.0009, +0.0017] | **+0.0020** [+0.0011, +0.0030] |
+| test | -0.0002 [-0.0011, +0.0007] | +0.0003 [-0.0005, +0.0012] | +0.0002 [-0.0005, +0.0009] | **-0.0010** [-0.0016, -0.0005] |
+
+**On ranking, Danish stemming does nothing.** All four metrics on both splits sit within
+±0.0004 of zero, and at this scale the intervals are tight enough that this is a measured
+null rather than an absence of evidence: the val AUC interval is ±0.0017 wide, so an effect
+even a fifth the size of the field ablation's would have shown.
+
+**On recall, the effect flips sign between val and test, and both are significant.** Turning
+stemming off gains +0.0020 recall@200 on val and loses -0.0010 on test. In relative terms
+stemming is **-8.5% on val and +4.7% on test**. A significant effect that reverses across a
+temporal split boundary is not a property of stemming; it is a property of which articles
+happened to be in each window. It should not be quoted as a directional result in either
+direction.
+
+*Does the A1 prior of +22 to +36% recall@200 reproduce at `small`?* **No, and this now closes
+the question.** Demo gave +1.4%, not significant, and was written up as inconclusive because
+demo was underpowered. At 10x, with intervals tight enough to resolve effects an order of
+magnitude smaller than the prior, the answer is -8.5% / +4.7% depending on the split. The prior
+is not merely unreproduced at low power; it is excluded.
+
+The standing hypothesis from 6b remains the best explanation and remains untested: this pipeline
+already applies a Danish stopword list, separately measured in A1 as 0.5035 -> 0.5232 AUC.
+Stopwords and stemming compete for the same high-frequency surface variation, so A1's stemming
+figure was most likely the combined effect of both against a baseline with neither. Testing that
+needs a `stem x stopwords` 2x2, which is a second variable and therefore its own ablation.
+
+**Kept ON**, and now on a cost argument alone rather than an accuracy one: it shrinks the
+vocabulary 43,451 -> 30,388 (30%) and *reduces* query scoring time 23.6 s -> 19.2 s on val,
+because a smaller vocabulary means shorter posting lists to walk. Free on both axes, neutral
+on ranking, so there is no reason to turn it off and a small reason not to.
+
+#### What the scale change teaches, beyond these two rows
+
+Of the four EB-NeRD demo cells, the two that were called `inconclusive` or `rejected` on
+statistical grounds resolved in opposite ways at 10x: #7's effect was real and simply
+unresolvable, #6's was genuinely absent. **Underpowered is not a synonym for zero**, and the
+demo tier cannot distinguish the two. Any future ablation whose interval spans zero at demo
+scale should be re-run at `small` before a verdict is recorded, not written off.
+
 #### Scale caveat, stated rather than buried
 
-Every EB-NeRD row above is **demo scale**: 11,777 articles, 6,872 val and 25,356 test
-impressions. That is roughly a tenth of `ebnerd_small` and it shows in the intervals, which are
-three to five times wider than MIND's. Several EB-NeRD cells are inconclusive *because the split
-is small*, not because the effect is zero. `ebnerd_small` re-runs are queued as separate rows and
-neither EB-NeRD verdict should be treated as settled until they land.
+Sections 6b and 7b are **demo scale**: 11,777 articles, 6,872 val and 25,356 test
+impressions, roughly a tenth of `ebnerd_small`, with intervals three to five times wider than
+MIND's. That caveat was written before the 10x runs and it proved to be the right one: at
+`ebnerd_small` (6c and 7c above) one demo verdict reversed and the other hardened. **Quote 6c
+and 7c, not 6b and 7b.** The demo rows are retained as the evidence for that lesson, not as
+results.
 
 ## A1 results carried forward
 

@@ -52,7 +52,15 @@ ebnerd_small:
   test_start: "2023-05-25 07:00:00"
   language: danish
   stopwords_file: configs/stopwords_da.txt
-  # Same reasoning as ebnerd_demo; not yet re-measured at this scale (ABLATIONS.md #6).
+  # Re-measured at this scale (ABLATIONS.md 6c) and kept, now on cost alone. Turning it off
+  # moves no ranking metric on either split: AUC -0.0003 [-0.0019, +0.0014] val,
+  # -0.0002 [-0.0011, +0.0007] test, and MRR/nDCG likewise flat. Its recall@200 effect is
+  # significant but flips sign across the split boundary (-8.5% val, +4.7% test), so it is
+  # not a directional result. Kept because it is free and slightly better than free: vocab
+  # 43,451 -> 30,388 and val scoring 23.6 s -> 19.2 s, shorter posting lists to walk.
+  #
+  # The A1 prior of +22 to +36% recall@200 for Danish stemming does NOT reproduce here and
+  # is excluded, not merely unconfirmed. See 6c.
   stem: true
   history_len: 30        # same sweep result as demo, verified separately
   # Same encoder as demo, chosen by the same val-only ablation.

@@ -84,6 +84,10 @@ A2 Q4.1 requires measured footprints, so every `TO MEASURE` row below is graded 
 | BM25 vocabulary, title only, stemmed | 10,738 terms | EB-NeRD demo | same command | A2 | 2026-09-04 |
 | BM25 vocabulary, title+abstract, unstemmed | 31,515 terms | EB-NeRD demo | `... --name stemming --variant no_stem:stem=off` | A2 | 2026-09-04 |
 | Danish stemming vocabulary saving | 29.9% (31,515 -> 22,105) | EB-NeRD demo | as above | A2 | 2026-09-04 |
+| BM25 vocabulary, title+abstract, stemmed | 30,388 terms over 20,738 articles | EB-NeRD small | `python -m src.eval.ablate_bm25 ebnerd_small --ablation fields` | A2 | 2026-09-08 |
+| BM25 vocabulary, title only, stemmed | 15,132 terms | EB-NeRD small | same command | A2 | 2026-09-08 |
+| BM25 vocabulary, title+abstract, unstemmed | 43,451 terms | EB-NeRD small | `... --ablation stemming` | A2 | 2026-09-08 |
+| Danish stemming vocabulary saving | 30.1% (43,451 -> 30,388) | EB-NeRD small | as above | A2 | 2026-09-08 |
 | English stemming vocabulary saving | 27.3% (60,914 -> 44,264) | MIND small | as above | A2 | 2026-09-04 |
 | **Index RAM footprint** | **TO MEASURE** | every index, both datasets | Q4.1 | A2 | |
 | **Index on-disk footprint** | **TO MEASURE** | every index, both datasets | Q4.1 | A2 | |
@@ -112,6 +116,11 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | BM25 index build | 5.2 s stemmed, 4.1 s unstemmed | MIND small | laptop | `... --name stemming ...` | A2 | 2026-09-04 |
 | BM25 index build | 0.7 s title+abstract, 0.5 s title only | EB-NeRD demo, 11,777 articles | laptop | `python -m src.eval.ablate_bm25 ebnerd_demo --name fields ...` | A2 | 2026-09-04 |
 | BM25 index build | 0.9 s stemmed, 0.6 s unstemmed | EB-NeRD demo | laptop | `... --name stemming ...` | A2 | 2026-09-04 |
+| BM25 index build | 1.0 s title+abstract, 0.6 s title only | EB-NeRD small, 20,738 articles | laptop | `python -m src.eval.ablate_bm25 ebnerd_small --ablation fields` | A2 | 2026-09-08 |
+| BM25 index build | 1.1 s stemmed, 1.0 s unstemmed | EB-NeRD small | laptop | `... --ablation stemming` | A2 | 2026-09-08 |
+| BM25 scoring, whole split | 19.2 s val stemmed vs 23.6 s unstemmed; 45.3 s vs 50.6 s test | EB-NeRD small | laptop | `... --ablation stemming` | A2 | 2026-09-08 |
+| Query deduplication ratio | 10,523 distinct for 64,365 val; 15,342 for 244,647 test | EB-NeRD small | laptop | `src.retrieval.bm25` stdout | A2 | 2026-09-08 |
+| Split build (`src.pipeline.split`) | 51.0 s wall, peak RSS 9.64 GB | EB-NeRD small | laptop | `/usr/bin/time -v ... -m src.pipeline.split ebnerd_small` | **A2, confirms 9.69 GB** | 2026-09-08 |
 | BM25 scoring, whole split | 85.3 s val (30,867 distinct queries), 144.8 s test (48,354) | MIND small | laptop | `... --name stemming ...` | A2 | 2026-09-04 |
 | BM25 scoring, whole split | 2.1 s val, 3.5 s test | EB-NeRD demo | laptop | `... --name stemming ...` | A2 | 2026-09-04 |
 | Query deduplication ratio | 30,867 distinct for 61,894 val; 48,354 for 73,152 test | MIND small | laptop | `src.retrieval.bm25` stdout | A2 | 2026-09-04 |
@@ -155,6 +164,12 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | BM25 title only, stemmed | 0.5153 [0.5115, 0.5195] | 0.3279 | 0.3601 | 0.4428 | EB-NeRD demo **test** | A2 |
 | BM25 title+abstract, unstemmed | 0.5209 [0.5134, 0.5283] | 0.3444 | 0.3802 | 0.4615 | EB-NeRD demo **val** | A2 |
 | BM25 title+abstract, unstemmed | 0.5128 [0.5089, 0.5169] | 0.3273 | 0.3581 | 0.4420 | EB-NeRD demo **test** | A2 |
+| BM25 title+abstract, stemmed | 0.5205 [0.5177, 0.5230] | 0.3418 | 0.3794 | 0.4607 | EB-NeRD small **val** | A2 |
+| BM25 title+abstract, stemmed | 0.5107 [0.5094, 0.5120] | 0.3257 | 0.3577 | 0.4409 | EB-NeRD small **test** | A2 |
+| BM25 title only, stemmed | 0.5229 [0.5203, 0.5253] | 0.3437 | 0.3820 | 0.4628 | EB-NeRD small **val** | A2 |
+| BM25 title only, stemmed | 0.5150 [0.5138, 0.5163] | 0.3281 | 0.3616 | 0.4430 | EB-NeRD small **test** | A2 |
+| BM25 title+abstract, unstemmed | 0.5202 [0.5176, 0.5226] | 0.3421 | 0.3793 | 0.4610 | EB-NeRD small **val** | A2 |
+| BM25 title+abstract, unstemmed | 0.5105 [0.5092, 0.5118] | 0.3261 | 0.3579 | 0.4411 | EB-NeRD small **test** | A2 |
 | A1 port re-check: BM25 recall@200 | **0.0248** vs A1's 0.0247 | EB-NeRD small test | `src.retrieval.bm25` | A2 |
 | A1 port re-check: emb recall@200 | **0.0278** vs A1's 0.0277 | EB-NeRD small test | `src.retrieval.embeddings` | A2 |
 | A1 port re-check: BM25 recall@200 | 0.0333 vs A1's 0.0220, **does not reproduce** | MIND small test | `src.retrieval.bm25` | A2 |
@@ -225,6 +240,12 @@ machine `laptop`, 2026-09-04. Reports under `results/ablation_bm25_*`.
 | title+abstract, stemmed | 0.0108 | 0.0216 | 0.0390 [0.0368, 0.0413] | EB-NeRD demo **test** |
 | title only, stemmed | 0.0096 | 0.0210 | 0.0380 [0.0358, 0.0401] | EB-NeRD demo **test** |
 | title+abstract, unstemmed | 0.0105 | 0.0200 | 0.0376 [0.0354, 0.0399] | EB-NeRD demo **test** |
+| title+abstract, stemmed | 0.0052 | 0.0110 | 0.0214 [0.0202, 0.0225] | EB-NeRD small **val** |
+| title only, stemmed | 0.0049 | 0.0098 | 0.0190 [0.0179, 0.0200] | EB-NeRD small **val** |
+| title+abstract, unstemmed | 0.0061 | 0.0123 | 0.0234 [0.0222, 0.0246] | EB-NeRD small **val** |
+| title+abstract, stemmed | 0.0072 | 0.0133 | 0.0247 [0.0241, 0.0253] | EB-NeRD small **test** |
+| title only, stemmed | 0.0070 | 0.0134 | 0.0242 [0.0235, 0.0248] | EB-NeRD small **test** |
+| title+abstract, unstemmed | 0.0070 | 0.0130 | 0.0236 [0.0230, 0.0242] | EB-NeRD small **test** |
 
 **These numbers are low and that is the finding, not a bug.** Recalling 3.7% of clicks in a top-200
 drawn from 65,238 MIND articles means BM25-over-click-history is a weak candidate generator on its

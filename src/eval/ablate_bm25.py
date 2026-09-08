@@ -20,8 +20,10 @@ Two metric families, because they answer different questions and have disagreed 
              the opposite way to AUC — a smaller index can rank a shown pool better while
              surfacing fewer of the right articles from 20k.
 
-    python -m src.eval.ablate_bm25 mind_small --splits val test \
-        --variant title:fields=title --variant title_abstract:fields=title_abstract
+    python -m src.eval.ablate_bm25 mind_small --ablation fields   --splits val test
+    python -m src.eval.ablate_bm25 mind_small --ablation stemming --splits val test
+
+`--ablation` names a pair defined in ABLATIONS below; `--variant` builds one ad hoc:
 
     python -m src.eval.ablate_bm25 ebnerd_small --variant stem:stem=on \
         --variant no_stem:stem=off
@@ -49,6 +51,16 @@ RESULTS = ROOT / "results"
 
 RANK_METRICS = ("auc", "mrr", "ndcg@5", "ndcg@10")
 RECALL_KS = (50, 100, 200)
+
+
+# The two ablations the A2 queue actually asks for (docs/ABLATIONS.md #6 and #7), as named
+# pairs. Spelling them out here rather than retyping --variant twice means the baseline and
+# the arm cannot drift apart between runs, and that a re-run months later reproduces the same
+# comparison from one word. --variant stays for anything ad hoc.
+ABLATIONS = {
+    "fields": ["title_abstract:fields=title_abstract", "title:fields=title"],
+    "stemming": ["stem:stem=on", "no_stem:stem=off"],
+}
 
 
 def parse_variant(spec: str) -> tuple[str, dict]:
@@ -177,7 +189,9 @@ def main() -> None:
     config = yaml.safe_load(CONFIG.read_text())
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset")
-    parser.add_argument("--variant", action="append", required=True,
+    parser.add_argument("--ablation", choices=list(ABLATIONS),
+                        help="run a named ablation from ABLATIONS (the usual case)")
+    parser.add_argument("--variant", action="append",
                         help="name:fields=<f>,stem=<on|off>; the first is the baseline")
     parser.add_argument("--splits", nargs="+", default=["val", "test"])
     parser.add_argument("--name", default=None,
@@ -186,8 +200,10 @@ def main() -> None:
                         help="leave data/processed/<dataset>/ablation/ in place afterwards")
     args = parser.parse_args()
 
-    specs = [parse_variant(v) for v in args.variant]
-    args.name = args.name or "_vs_".join(name for name, _ in specs)
+    if bool(args.ablation) == bool(args.variant):
+        raise SystemExit("pass exactly one of --ablation or --variant")
+    specs = [parse_variant(v) for v in (args.variant or ABLATIONS[args.ablation])]
+    args.name = args.name or args.ablation or "_vs_".join(name for name, _ in specs)
     if len(specs) < 2:
         raise SystemExit("need at least two variants: a baseline and something to compare")
     cfg = config[args.dataset]
