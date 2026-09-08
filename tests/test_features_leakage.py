@@ -3,7 +3,10 @@
 A2 Q9 requires a test asserting that no future click leaks into a feature. The features
 that could leak are the ones built from the click log itself, so `pop_causal` is what this
 file is about; the rest are either static article properties (`age_hours`, `recency`,
-`cat_match`) or come from history arrays that are past by construction.
+`cat_match`) or come from history arrays. Those history arrays are past by construction
+only *within a block*: see the engagement section at the bottom of this file, where
+merging two blocks leaked future clicks and went unnoticed because nothing here checked
+them.
 
 Every assertion here is checked for non-vacuity: a test that passes because it compared
 nothing is worse than no test, and that has already happened once on this project.
@@ -121,3 +124,104 @@ def test_the_check_would_catch_an_injected_future_click(built):
     leaky = int((poisoned <= t + np.timedelta64(2, "D")).sum())
     assert leaky > honest, "injection did not change the count, so the test is inert"
     assert row["pop_causal"] == honest, f"{name}: feature matches the leaky count, not the honest one"
+
+
+# ---------------------------------------------------------------------------------------
+# The engagement history block. engage_sim, user_read and user_scroll are built from
+# history.parquet, and the file docstring above used to claim such arrays are "past by
+# construction". That is true only per block. Each block's history describes clicks before
+# *that block's* log period, and our val split is carved out of the train block, so
+# validation-block history is future history for a val impression. An earlier
+# _engagement_weights merged both blocks and let validation win for the users present in
+# both, which leaked and was worth +0.0967 AUC on engage_sim.
+
+
+def _history_block_for(cfg: dict, split: str) -> Path:
+    """The same block-per-split rule build.py uses, restated here on purpose.
+
+    Restated rather than imported: if build.py's rule regresses, an imported helper would
+    regress with it and the test would keep passing.
+    """
+    return ROOT / (cfg["early_root"] if split in ("train", "val") else cfg["test_root"])
+
+
+@pytest.fixture(params=DATASETS)
+def engagement(request):
+    import yaml
+
+    name = request.param
+    cfg = yaml.safe_load((ROOT / "configs/datasets.yaml").read_text())[name]
+    if "early_root" not in cfg:
+        pytest.skip(f"{name}: no raw blocks configured")
+    out = {}
+    for split in ("train", "val", "test"):
+        imps = PROC / name / f"impressions_{split}.parquet"
+        hist = _history_block_for(cfg, split) / "history.parquet"
+        if not imps.exists() or not hist.exists():
+            continue
+        h = pl.read_parquet(hist, columns=["user_id", "impression_time_fixed"])
+        if not h.height:
+            continue
+        out[split] = (
+            pl.read_parquet(imps, columns=["user_id", "timestamp"]),
+            h.with_columns(pl.col("user_id").cast(pl.Utf8)),
+        )
+    if not out:
+        pytest.skip(f"{name}: no engagement history for any split")
+    return name, out
+
+
+def test_engagement_history_is_strictly_before_its_impressions(engagement):
+    """No click in the history a split reads may fall at or after an impression using it.
+
+    This is the assertion whose absence let the block-merge leak survive: the previous
+    suite covered pop_causal only, so engage_sim, user_read and user_scroll were never
+    checked at all.
+    """
+    name, splits = engagement
+    for split, (imps, hist) in splits.items():
+        latest = hist.select(
+            "user_id",
+            pl.col("impression_time_fixed").list.max().alias("last_click"),
+        ).drop_nulls("last_click")
+        joined = imps.join(latest, on="user_id", how="inner")
+        # Non-vacuity: the join must actually match users, and the comparison must run on
+        # real datetimes rather than nulls. Without this the whole test can pass on an
+        # empty frame, which is how the MIND history assertion reported green over 95,071
+        # rows while checking none of them.
+        assert joined.height > 0, f"{name}/{split}: history joined to zero impressions"
+        assert joined["last_click"].null_count() == 0, (
+            f"{name}/{split}: null last_click would make every comparison null"
+        )
+        bad = joined.filter(pl.col("last_click") >= pl.col("timestamp"))
+        assert bad.height == 0, (
+            f"{name}/{split}: {bad.height} of {joined.height} impressions "
+            f"({100 * bad.height / joined.height:.1f}%) read history at or after "
+            f"their own timestamp"
+        )
+
+
+def test_the_check_would_catch_an_injected_future_click(engagement):
+    """Same comparison against a deliberately poisoned history, which must fail.
+
+    Verified by injection rather than trusted: three of this project's four vacuous tests
+    passed against broken data, so a leakage assertion is not evidence until it has been
+    watched to fire.
+    """
+    name, splits = engagement
+    split, (imps, hist) = next(iter(splits.items()))
+    latest = hist.select(
+        "user_id", pl.col("impression_time_fixed").list.max().alias("last_click")
+    ).drop_nulls("last_click")
+    joined = imps.join(latest, on="user_id", how="inner")
+    assert joined.height > 0, f"{name}/{split}: nothing to poison"
+    # Push every user's last click one hour past the impression it is used for, which is
+    # exactly the shape of the block-merge leak.
+    poisoned = joined.with_columns(
+        (pl.col("timestamp") + pl.duration(hours=1)).alias("last_click")
+    )
+    bad = poisoned.filter(pl.col("last_click") >= pl.col("timestamp"))
+    assert bad.height == poisoned.height, (
+        f"{name}/{split}: the check found {bad.height} of {poisoned.height} injected "
+        f"violations, so it does not actually detect this leak"
+    )

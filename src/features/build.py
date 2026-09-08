@@ -26,7 +26,6 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "configs/datasets.yaml"
 PROC = ROOT / "data/processed"
-INTERIM = ROOT / "data/interim"
 
 # Article age is turned into a decay rather than fed raw, because clicks fall off sharply
 # in the first hours and a linear age lets a month-old article sit numerically close to a
@@ -71,22 +70,30 @@ def _causal_popularity(cands: list[str], t: np.datetime64, times: dict) -> np.nd
     )
 
 
-def _engagement_weights(name: str) -> dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]:
+def _engagement_weights(
+    cfg: dict, split: str
+) -> dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Per user: (article ids, read seconds, scroll pct) for their past clicks.
 
-    EB-NeRD only. These arrays live on history.parquet, which describes clicks strictly
-    before the log period, so all three are causally valid. Neither A1 system used the
-    read-time or scroll columns at all.
+    EB-NeRD only. Each block's history.parquet describes clicks strictly before *that
+    block's* log period, so it is causally valid only for impressions drawn from the same
+    block. Which block a split comes from is read from the same config keys split.py uses,
+    so the two cannot drift apart: train and val are carved out of `early_root`, test is
+    `test_root`.
+
+    An earlier version looped over both blocks and let the later one overwrite, which for
+    the 11,658 users present in both replaced train-block history with validation-block
+    history. Since val is carved out of the train block, that is future history for a val
+    impression, and it was worth +0.0967 AUC on engage_sim. Never merge the blocks here.
     """
+    root = ROOT / (cfg["early_root"] if split in ("train", "val") else cfg["test_root"])
     out: dict[str, tuple] = {}
-    for block in ("train", "validation"):
-        p = INTERIM / name / block / "history.parquet"
-        if not p.exists():
-            continue
-        h = pl.read_parquet(p)
+    path = root / "history.parquet"
+    if path.exists():
+        h = pl.read_parquet(path)
         cols = set(h.columns)
         if not {"read_time_fixed", "article_id_fixed"} <= cols:
-            continue
+            return out
         for row in h.iter_rows(named=True):
             uid = str(row["user_id"])
             arts = np.asarray(row["article_id_fixed"], dtype=object).astype(str)
@@ -154,7 +161,7 @@ def build(name: str, cfg: dict, split: str) -> None:
     print(f"  {split}: {imps.height:,} impressions")
     times, _ = _click_events(name)
     print(f"    click history for {len(times):,} articles")
-    engage = _engagement_weights(name)
+    engage = _engagement_weights(cfg, split)
     print(f"    engagement arrays for {len(engage):,} users"
           if engage else "    no engagement columns for this dataset")
     index, mat = _article_vectors(cfg)
