@@ -315,10 +315,11 @@ def render(report: dict) -> str:
     out.append("")
     out.append("## Accuracy (mean [95% bootstrap CI])")
     out.append("")
-    out.append("| system | AUC | MRR | nDCG@5 | nDCG@10 |")
-    out.append("|---|---|---|---|---|")
+    out.append("| system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |")
+    out.append("|---|---|---|---|---|---|")
     for s in systems:
-        row = [bootstrap.fmt(**report["overall"][s][m]) for m in ("auc", "mrr", "ndcg@5", "ndcg@10")]
+        row = [bootstrap.fmt(**report["overall"][s][m])
+               for m in ("auc", "mrr", "mrr_all", "ndcg@5", "ndcg@10")]
         out.append(f"| {s} | " + " | ".join(row) + " |")
 
     out += ["", "## Beyond accuracy (top-10)", "",

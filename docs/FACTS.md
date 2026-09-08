@@ -474,3 +474,44 @@ the impression timestamp, which is the assertion that would have fired. That is 
 coverage case in the same family as the four already recorded: the guard existed, but not over
 this path.
 
+## 11. Y2b RESOLVED: MIND MRR is first-click against all-clicks (A2)
+
+Our offline MRR read **0.3548** where the MIND leaderboard returned **0.3198** for the same A1
+system, while AUC and both nDCGs rose. Third instance of one metric name covering two
+definitions, after hit-rate/recall (section on the MIND recall gap) and the Y2a history source.
+
+**Cause: the organisers average over every clicked article; we credited only the best-placed
+one.** MIND's official scorer is `sum(1/rank for each positive) / n_positives`. Our
+`eval.metrics.mrr` is `1 / min(rank over positives)`.
+
+Measured on MIND small test, BM25 title+abstract, 73,152 impressions, laptop, 2026-09-08
+(`python -m src.retrieval.bm25 mind_small --splits test --out-subdir mrrcheck`):
+
+| definition | MRR |
+|---|---|
+| first clicked article only (ours) | **0.3108** |
+| mean over all clicked articles (MIND official) | **0.2693** |
+| difference | **-0.0415** [-0.0423, -0.0405], paired |
+
+**The signature matches exactly.** AUC (0.5685) and nDCG@10 (0.3479) are *identical* under both,
+because neither reads which click came first, so only MRR moves. That is the reported pattern:
+MRR fell while AUC and both nDCGs rose.
+
+**It is entirely a multi-click effect.** The 71.2% of impressions with one click score
+identically under both definitions, maximum absolute difference exactly 0.0. The whole gap comes
+from the 28.8% with more than one, where 0.3095 becomes 0.1657. The same property explains the
+recall/hit-rate gap, and EB-NeRD is immune to both at 0.5% multi-click.
+
+**Exact reconciliation is not possible and should not be attempted**, because the two numbers
+are on different corpora: 0.3548 was offline on MIND small test, 0.3198 was the leaderboard on
+MIND **large** test, whose click distribution we cannot observe. Our measured ratio is 0.867
+against the observed 0.901, the same direction and magnitude, with the residual attributable to
+that difference. **The mechanism is confirmed; the arithmetic cannot be closed and the report
+should say so** rather than implying the two were reconciled.
+
+**Fix: both are now reported, and neither is silently swapped.** `eval.metrics.mrr_all`
+implements the official definition and `src.eval.run` prints both columns. They answer different
+questions, `mrr` how fast the user finds something they wanted and `mrr_all` how well the whole
+clicked set is placed, so replacing one with the other would trade one wrong comparison for
+another. **When quoting against a MIND leaderboard number, use `mrr_all`.**
+
