@@ -174,17 +174,38 @@ def test_no_scorer_reads_a_serving_unavailable_column():
     reported as servable was not.
     """
     forbidden = ("total_inviews", "total_pageviews", "total_read_time")
-    allowed = {"eval/run.py"}
+    # Modules allowed to name these, because quantifying what they would buy is the point
+    # of the Q9 report. Everything else touching them means a number reported as servable
+    # was not.
+    allowed = {"src/eval/run.py", "src/features/leaky.py"}
 
     # A grep-style test rather than a runtime one, deliberately. Leakage of this kind is a
     # question about which code is ALLOWED to touch a column, and that is a property of the
     # source, not of any single execution a runtime check might happen to miss.
-    offenders = []
-    for path in sorted((ROOT / "retrieval").glob("*.py")) + sorted((ROOT / "eval").glob("*.py")):
-        rel = path.relative_to(ROOT).as_posix()
-        if rel in allowed:
-            continue
-        text = path.read_text()
-        offenders += [f"{rel}: {col}" for col in forbidden if col in text]
+    #
+    # Scans src/ recursively. It previously globbed ROOT/retrieval and ROOT/eval, which
+    # stopped existing when the A1 port moved everything under src/, so from that commit
+    # until 2026-09-07 this test scanned zero files and asserted nothing while reporting
+    # green. Hence the scanned-count assertion below.
+    # Scoring code only. src/pipeline is excluded on purpose: carrying these columns into
+    # the corpus is its job, and eval/run.py needs them there to quantify what they would
+    # buy. The question is which code may SCORE with them, not which may transport them.
+    scored_by = ("retrieval", "eval", "features", "rerank", "baseline", "submission")
+    scanned, offenders = [], []
+    for sub in scored_by:
+        for path in sorted((ROOT / "src" / sub).rglob("*.py")):
+            rel = path.relative_to(ROOT).as_posix()
+            scanned.append(rel)
+            if rel in allowed:
+                continue
+            text = path.read_text()
+            offenders += [f"{rel}: {col}" for col in forbidden if col in text]
 
-    assert not offenders, "serving-unavailable columns read outside eval/run.py: " + "; ".join(offenders)
+    assert len(scanned) >= 10, (
+        f"only {len(scanned)} source files scanned, so this test would pass without "
+        f"checking anything; the source layout has moved again"
+    )
+    assert not offenders, (
+        "serving-unavailable columns read outside " + ", ".join(sorted(allowed)) + ": "
+        + "; ".join(offenders)
+    )

@@ -1,0 +1,36 @@
+{
+  "tag": "q9_leaky",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim",
+    "leak_inviews",
+    "leak_pageviews",
+    "leak_readtime"
+  ],
+  "best_iteration": 145,
+  "val_auc": 0.7796071341750862,
+  "test_auc": 0.7550038664864122,
+  "importance": {
+    "pop_causal": 679581.4836921692,
+    "leak_inviews": 207532.1040878296,
+    "recency": 205713.71584320068,
+    "engage_sim": 164979.25940704346,
+    "age_hours": 146994.9262123108,
+    "leak_pageviews": 129672.7852973938,
+    "cat_match": 90466.54628753662,
+    "leak_readtime": 78651.26502227783,
+    "bm25": 11888.324989318848,
+    "emb": 10028.423637390137,
+    "hist_len": 9520.77759552002,
+    "user_scroll": 3559.809410095215,
+    "user_read": 584.9483871459961
+  }
+}

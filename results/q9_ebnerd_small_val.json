@@ -1,0 +1,13 @@
+{
+  "causal_auc": 0.7574530383598485,
+  "leaky_auc": 0.7796071341750862,
+  "delta": 0.02215409581523775,
+  "ci_lo": 0.020739092794102926,
+  "ci_hi": 0.023537528525281296,
+  "n_impressions": 64365,
+  "leaky_features": [
+    "leak_inviews",
+    "leak_pageviews",
+    "leak_readtime"
+  ]
+}

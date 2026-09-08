@@ -1,0 +1,30 @@
+{
+  "tag": "q9_causal",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim"
+  ],
+  "best_iteration": 311,
+  "val_auc": 0.7574530383598486,
+  "test_auc": 0.7428878329524964,
+  "importance": {
+    "pop_causal": 615482.1143407822,
+    "engage_sim": 169920.27345466614,
+    "recency": 161327.2637500763,
+    "age_hours": 139985.4789018631,
+    "cat_match": 102514.89032363892,
+    "emb": 47275.38818836212,
+    "hist_len": 35201.09979438782,
+    "bm25": 33170.497579574585,
+    "user_scroll": 8372.77923488617,
+    "user_read": 8012.264928817749
+  }
+}

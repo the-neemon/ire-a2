@@ -394,3 +394,88 @@ MIND has no `published_time`, no per-click history timestamps and no engagement 
 `recency`, `age_hours`, `engage_sim`, `user_read` and `user_scroll` cannot be computed there.
 Per `info.md`'s fairness note the two datasets get explicitly separate feature sets rather than
 one system quietly running with zeros on half its inputs. The MIND arm is a separate row, unrun.
+
+
+## Q9: what the serving-unavailable features would buy (EB-NeRD small, val)
+
+Required by the brief: report metrics with and without features unavailable at serving time.
+Both arms are the same lambdarank model on the same rows in the same order; the only
+difference is which columns it may see. Paired bootstrap, 1000 resamples, seed 13.
+
+| arm | val AUC |
+|---|---|
+| causal only, **this is what ships** | 0.7575 |
+| + article lifetime aggregates | 0.7796 |
+| **difference** | **+0.0222** [+0.0207, +0.0235], significant |
+
+The leaky arm adds `total_inviews`, `total_pageviews` and `total_read_time`, which aggregate
+an article's whole lifetime including time after the impression being predicted, so they
+cannot be computed at serving time.
+
+**The interesting part is how small +0.0222 is.** A1 measured the same class of feature at
++0.042 on EB-NeRD small and +0.075 on the demo split, both far larger. The difference is that
+A1 compared leaky popularity against a system with **no** popularity signal at all, whereas
+here it is competing with `pop_causal`, which counts clicks strictly before the impression.
+So most of what lifetime popularity was providing is legitimately obtainable, and the honest
+reconstruction captures it. That was the open question when the feature was proposed, and the
+answer is that roughly two thirds to three quarters of the leaky advantage survives causal
+restriction.
+
+Stated the other way: cheating here is worth +0.0222, against the +0.2077 that the whole
+behavioural axis buys legitimately. The gap that matters is not the one being declined.
+
+**Guard.** `tests/test_leakage.py::test_no_scorer_reads_a_serving_unavailable_column` fails if
+any scoring module names these columns. `src/features/leaky.py` is allow-listed because
+producing this row is its only purpose, and `src/pipeline/` is out of scope because carrying
+the columns into the corpus is what lets the comparison exist.
+
+**That guard had been vacuous.** It globbed `ROOT/retrieval` and `ROOT/eval`, paths that
+stopped existing when the A1 port moved everything under `src/`, so from that commit until
+2026-09-07 it scanned zero files and passed without checking anything. It now scans the
+scoring packages recursively, asserts it saw at least ten files, and was verified by injecting
+a violation and confirming it fails. Third vacuous test found in this project.
+
+
+## History length x weighting sweep: info.md's prediction is REJECTED
+
+`info.md` predicted that read-time weighting "may recover the benefit of large N that uniform
+mean-pooling throws away". Measured on EB-NeRD small val, 64,365 impressions, 18,827 users.
+Per-impression AUC of the similarity feature alone, so the result is about the user vector and
+nothing else. Both arms use the same code path and the same N; only the weights differ.
+
+| N | uniform | read-time weighted | weighted - uniform |
+|---|---|---|---|
+| 1 | 0.5584 | 0.5584 | +0.0000 |
+| 5 | 0.6333 | 0.6237 | **-0.0096** |
+| 10 | **0.6473** | **0.6397** | -0.0076 |
+| 20 | 0.6362 | 0.6329 | -0.0033 |
+| 50 | 0.6093 | 0.6092 | -0.0000 |
+| 100 | 0.5906 | 0.5919 | +0.0013 |
+
+**Claim 1 confirmed.** Performance is non-monotonic in N and degrades badly past 10: 0.6473 at
+N=10 falls to 0.5906 at N=100. This replicates what both A1 systems saw.
+
+**Claim 2 rejected.** Read-time weighting is *worse* than uniform at every N from 5 to 50, and
+only marginally better at N=100 (+0.0013). It does not rescue long histories. If anything it
+slightly hurts at the history lengths that actually work.
+
+### This corrects an earlier claim in this file
+
+An earlier entry reported "engagement weighting beats uniform pooling" on the basis that
+`engage_sim` scored 0.5774 against `emb`'s 0.5506 standalone, and that removing `engage_sim`
+cost 0.0085 in the ranker. **That comparison was confounded and the causal reading was wrong.**
+`_engagement_user_vectors` pools over the user's *entire* history, while `emb` comes from the A1
+retrieval path with `history_len: 30`. So the two differed in **two** variables at once,
+weighting and history length, and the sweep above shows the weighting is not the one that helps.
+
+The ablation delta for `engage_sim` (+0.0085, CI [+0.0075, +0.0096]) is still real: the feature
+does contribute. But it contributes as a *differently pooled* user vector, not as a
+*better-weighted* one, and the report must not claim the latter.
+
+**Best N is 10, not the 30 currently configured**, on this metric. That is a separate finding
+and a candidate change, but it is a stage-one config value in Yash's lane, so it is logged here
+rather than applied.
+
+**Still untested:** the scroll-completion *filter* (`info.md` item 4), which drops low-engagement
+history entries rather than down-weighting them. That is a different mechanism and this result
+does not speak to it.

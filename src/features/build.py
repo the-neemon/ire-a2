@@ -7,7 +7,7 @@ form, only the causal one is read:
 
     read_time            on behaviors.parquet   describes the impression being predicted
     read_time_fixed      on history.parquet     describes clicks already in the past
-    total_inviews etc.   on articles.parquet    aggregate the article's whole lifetime
+    the lifetime totals  on articles.parquet    aggregate the article's whole lifetime
     published_time       on articles.parquet    fixed before any impression sees it
 
 Emits data/processed/<dataset>/features_<split>.parquet.
