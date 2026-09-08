@@ -541,3 +541,48 @@ MIND additionally has a `zero_history` slice of 2,214 impressions, users with no
 all. EB-NeRD small has none, its cold decile starting at 34 clicks, which is why the cold/warm
 threshold is per-dataset and reported rather than fixed.
 
+## 13. Q7: what was actually submitted to each leaderboard (A2)
+
+**The uploaded system is the embeddings-only scorer, not the reported two-stage system.**
+Recorded here explicitly so no reader can mistake the leaderboard number for the headline one.
+Machine: laptop, 2026-09-08.
+
+| | MIND (Codabench 13967) | EB-NeRD (RecSys 2024) |
+|---|---|---|
+| impressions written | **2,370,727** | pending |
+| articles | 120,961 | 125,500 |
+| scorer | MiniLM 384-d + entity blend a=0.20 | `contrastive_vector` 768-d |
+| archive | `mind_prediction.zip`, 107.3 MB | `ebnerd_predictions.zip` |
+| inner filename | `prediction.txt` (singular) | `predictions.txt` (plural) |
+| validated | **yes**, all checks | pending |
+
+Article encoding for MIND large test: 120,961 articles, MiniLM on CPU, cached to
+`data/processed/mindlarge_test_embeddings.npy` so a rebuild does not re-encode. Entity blend
+active on 106,919/120,961 articles (88.4%).
+
+**Offline, this is not our best system.** On EB-NeRD small test the embeddings-only scorer reads
+0.5397 AUC against `fused` 0.5380, `bm25` 0.5107 and the two-stage `rerank` **0.7429**. So the
+leaderboard entry is roughly 0.20 AUC below the system the report describes.
+
+The gap is structural rather than an oversight: the re-ranker's features need `pop_causal` and
+the engagement columns, which the held-out test sets do not ship in a form the feature builder
+consumes. BM25 was excluded for a separate practical reason, measured at roughly 1.6 h for
+MIND-large's 2M distinct histories. **Reported as two different systems rather than letting the
+better offline number stand in for the uploaded one.**
+
+### Validation before upload, and why it is structural
+
+`src.submission.validate` checks inner filename, zip contents, row count, row order and that
+every row is a permutation of 1..n, offline, before any upload. MIND allows one submission per
+day and EB-NeRD scoring takes hours, so a malformed file costs a day rather than a retry.
+
+Row order is the check that earns its keep: ranks are **positional** against the test file's
+candidate order, so a correctly-ranked but reordered file scores as a plausible bad model rather
+than erroring. A previous submission on this project covered 0.84% of the test set and scored
+0.5012, exactly random, because a smoke test was written to the real upload path. `--limit` now
+writes to a `SMOKE-` prefix that cannot occupy the submission filename.
+
+**Verified non-vacuous by injection**, per the rule adopted after four vacuous checks were found
+here: wrong inner filename, two rows swapped, truncation to 420 of 50,000 rows, a duplicated
+rank, and a folder inside the zip. All five fail with exit 1; the real file exits 0.
+
