@@ -33,6 +33,12 @@ SYSTEMS = ["bm25", "emb", "fused"]
 # Compared against `fused` to show what serving-unavailable popularity would buy.
 LEAKY = "fused+popularity"
 
+# Stage two. Scored here only if `rerank_<RERANK_TAG>_<split>.parquet` exists, so this module
+# still runs on a dataset that has no re-ranker yet. Q5 wants the full metric set over the
+# two-stage output, not the per-impression AUC the trainer prints.
+RERANK = "rerank"
+RERANK_TAG = "full"
+
 # The full-corpus retrieval track: candidate *generation* from the whole catalogue, scored
 # by recall@K. Distinct from the tables above, which re-rank the pool the log already
 # showed. `fused` has no retrieval track — fusion needs both scores over a shared pool.
@@ -51,6 +57,66 @@ def load(name: str, split: str) -> pl.DataFrame:
     for system in SYSTEMS:
         df = df.join(pl.read_parquet(base / f"{system}_{split}.parquet"), on="impression_id")
     return df
+
+
+def flat_scores(name: str, split: str, tag: str = RERANK_TAG) -> pl.DataFrame | None:
+    """Re-ranker output reshaped to this module's format: one score list per impression.
+
+    Stage one writes `<system>_<split>.parquet` as impression_id plus a list of scores already
+    aligned to `candidates`. The re-ranker instead writes one row per *candidate*:
+
+        impression_id | candidate | label | score
+
+    so it has to be pivoted before it can be compared against the stage-one systems.
+
+    The ordering is the whole risk here. `candidates` is the order every label and every other
+    system's score vector uses, and a re-grouped list that happens to come back in a different
+    order would still be the right length and the right values — it would produce a plausible
+    wrong number rather than an error. So the order is *rebuilt* from `candidates` by joining
+    on (impression_id, candidate) against an explicit position index, never taken from the
+    flat file's row order, and the join is then asserted to have covered every candidate.
+
+    Returns None if the re-ranker has not been run for this dataset and split.
+    """
+    path = PROC / name / f"rerank_{tag}_{split}.parquet"
+    if not path.exists():
+        return None
+    flat = pl.read_parquet(path, columns=["impression_id", "candidate", "score"])
+
+    # The authoritative order: every candidate of every impression, with its position.
+    wanted = (
+        pl.read_parquet(PROC / name / f"impressions_{split}.parquet",
+                        columns=["impression_id", "candidates"])
+        .explode("candidates")
+        .rename({"candidates": "candidate"})
+        .with_columns(pl.int_range(pl.len()).over("impression_id").alias("position"))
+    )
+    joined = wanted.join(flat, on=["impression_id", "candidate"], how="left")
+
+    # A null score means the flat file was missing a candidate the impression actually shows.
+    # Scoring that as anything at all would silently invent a ranking, so it is fatal for the
+    # impressions the re-ranker does cover; impressions it covers not at all are dropped
+    # wholesale by the inner join in `evaluate`, which is a different and visible thing.
+    covered = flat["impression_id"].unique()
+    missing = (
+        joined.filter(pl.col("impression_id").is_in(covered) & pl.col("score").is_null()).height
+    )
+    assert missing == 0, (
+        f"{path.name}: {missing:,} candidates of impressions the re-ranker scored have no "
+        "score; the flat table and `candidates` disagree and the join would misalign"
+    )
+    # Duplicate (impression_id, candidate) pairs would inflate a list past its pool length.
+    assert joined.height == wanted.height, (
+        f"{path.name}: join changed row count {wanted.height:,} -> {joined.height:,}; "
+        "duplicate (impression_id, candidate) rows in the flat table"
+    )
+
+    return (
+        joined.drop_nulls("score")
+        .sort(["impression_id", "position"])
+        .group_by("impression_id", maintain_order=True)
+        .agg(pl.col("score").alias(RERANK))
+    )
 
 
 def load_retrieval(name: str, split: str, impression_ids: pl.Series) -> dict[str, pl.Series]:
@@ -93,6 +159,18 @@ def leaky_scores(df: pl.DataFrame, articles: pl.DataFrame) -> list[np.ndarray] |
 
 def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame) -> dict:
     df = load(name, split)
+    systems = list(SYSTEMS)
+
+    # Stage two, if it has been run. The inner join restricts every system to the impressions
+    # the re-ranker covers, which is what keeps the comparison paired: a bootstrap over two
+    # different impression sets is not a paired test. The restriction is reported rather than
+    # hidden, as `impressions_before_rerank_join` in the report.
+    reranked = flat_scores(name, split)
+    before = df.height
+    if reranked is not None:
+        df = df.join(reranked, on="impression_id", how="inner")
+        systems.append(RERANK)
+
     candidates = df["candidates"].to_list()
     clicked = df["clicked"].to_list()
     labels = [
@@ -100,7 +178,15 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
         for cand, k in zip(candidates, clicked)
     ]
 
-    scores = {s: [np.asarray(v, dtype=np.float64) for v in df[s].to_list()] for s in SYSTEMS}
+    scores = {s: [np.asarray(v, dtype=np.float64) for v in df[s].to_list()] for s in systems}
+    # Every score vector must be exactly as long as the pool it ranks, or a metric would be
+    # silently computed against the wrong candidates.
+    for system, vectors in scores.items():
+        bad = next(((i, len(v), len(c)) for i, (v, c) in enumerate(zip(vectors, candidates))
+                    if len(v) != len(c)), None)
+        assert bad is None, (
+            f"{system}: impression at row {bad[0]} has {bad[1]} scores for {bad[2]} candidates"
+        )
     leaky = leaky_scores(df, articles)
     if leaky is not None:
         scores[LEAKY] = leaky
@@ -124,6 +210,8 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
     report = {
         "dataset": name, "split": split,
         "impressions": df.height, "scored": int(keep.sum()),
+        "impressions_before_rerank_join": before,
+        "systems": systems,
         "cold_threshold_history_len": cold_threshold,
         "head_threshold_train_clicks": head_threshold,
         "overall": {}, "slices": {}, "beyond_accuracy": {}, "comparisons": {},
@@ -194,6 +282,11 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
     # The comparisons that answer the assignment's questions: does semantic beat lexical,
     # does fusing beat either alone, and what would the unservable feature have bought.
     pairs = [("emb", "bm25"), ("fused", "emb"), ("fused", "bm25")]
+    if RERANK in systems:
+        # Q2's claim is that stage two beats stage one. Reported against all three stage-one
+        # systems, not just the strongest, because "beats the best baseline" and "beats the
+        # baseline we happened to ship" are different claims.
+        pairs += [(RERANK, "bm25"), (RERANK, "emb"), (RERANK, "fused")]
     if leaky is not None:
         pairs.append((LEAKY, "fused"))
     for a, b in pairs:
@@ -210,6 +303,15 @@ def render(report: dict) -> str:
     out = [f"# {report['dataset']} — {report['split']}", ""]
     out.append(f"{report['impressions']:,} impressions, {report['scored']:,} scored "
                f"(the rest are all-clicked or none-clicked and carry no ranking signal).")
+    before = report.get("impressions_before_rerank_join")
+    if before and before != report["impressions"]:
+        out.append("")
+        out.append(f"Restricted from {before:,} to {report['impressions']:,} impressions "
+                   f"({report['impressions'] / before:.1%}) by the inner join onto the "
+                   "re-ranker's output. Every system in this report is scored on that same "
+                   "restricted set, which is what keeps the paired comparisons valid; the "
+                   "stage-one numbers here are therefore not directly comparable to a report "
+                   "produced without a re-ranker.")
     out.append("")
     out.append("## Accuracy (mean [95% bootstrap CI])")
     out.append("")

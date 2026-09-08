@@ -176,9 +176,15 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | A1 port re-check: emb recall@200 | 0.0354 vs A1's 0.0239, **does not reproduce** | MIND small test | `src.retrieval.embeddings` | A2 |
 | | | | | |
 | ~~Open: both MIND recall@200 numbers came in ~50% above A1 while both EB-NeRD numbers matched to 4dp.~~ **Resolved 2026-09-04: two different metrics, not a corpus or config difference.** `src.retrieval.bm25` printed a hit-rate under the label recall. | | MIND small test | see below | A2 |
-| A2 two-stage re-ranker, full | **0.7575** | | | val, EB-NeRD small | A2 |
-| A2 two-stage re-ranker, full | **0.7429** | | | test, EB-NeRD small | A2 |
-| A2 stage one alone (bm25+emb) | 0.5498 | | | val, EB-NeRD small | A2 |
+| A2 two-stage re-ranker, full | **0.7575** | 0.5319 | 0.5967 | 0.6341 | val, EB-NeRD small | A2, full metric set 2026-09-08 |
+| A2 two-stage re-ranker, full | **0.7429** | 0.5149 | 0.5750 | 0.6140 | test, EB-NeRD small | A2, full metric set 2026-09-08 |
+| A2 stage one alone (bm25+emb) | 0.5498 | | | | val, EB-NeRD small | A2 |
+| emb | 0.5506 [0.5482, 0.5530] | 0.3594 | 0.4017 | 0.4778 | val, EB-NeRD small | A2 | 
+| fused | 0.5528 [0.5503, 0.5553] | 0.3628 | 0.4043 | 0.4807 | val, EB-NeRD small | A2 |
+| fused+popularity (leaky, not servable) | 0.5784 [0.5760, 0.5808] | 0.3707 | 0.4184 | 0.4910 | val, EB-NeRD small | A2 |
+| emb | 0.5397 [0.5384, 0.5409] | 0.3492 | 0.3831 | 0.4627 | test, EB-NeRD small | A2 |
+| fused | 0.5380 [0.5367, 0.5392] | 0.3474 | 0.3813 | 0.4613 | test, EB-NeRD small | A2 |
+| fused+popularity (leaky, not servable) | 0.5797 [0.5785, 0.5810] | 0.3688 | 0.4101 | 0.4841 | test, EB-NeRD small | A2 |
 | **A2 two-stage pipeline, MIND** | **TO MEASURE** | | | both | A2 |
 | **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
 
@@ -254,3 +260,89 @@ impressions retrieve nothing at all and are counted as 0, and MIND ships no `pub
 the retrieval track cannot exclude articles that did not exist yet (EB-NeRD can, and does, with
 845 demo articles published after the test window ends). Q2's two-stage design should not assume
 stage 1 recall is adequate until this is raised.
+
+## 8. Q5: the full metric set over the two-stage output (A2)
+
+`python -m src.eval.run ebnerd_small --splits val test`. Machine: laptop, 2026-09-08. Reports
+in `results/ebnerd_small_{val,test}.md`. All CIs are 1,000 paired bootstrap resamples over
+impressions; every AUC is **per impression**, never pooled.
+
+The re-ranker's trainer computes per-impression AUC independently and agrees with the harness
+to four decimals on both splits (val 0.7575, test 0.7429). That agreement is the check that
+`eval.run.flat_scores` reshaped the flat per-candidate table into `candidates` order correctly:
+a mis-ordered join produces a plausible number rather than an error, so it is verified against
+a figure computed by other code instead of being assumed.
+
+### Stage two against every stage-one baseline
+
+| comparison | val AUC | test AUC | significant |
+|---|---|---|---|
+| rerank - bm25 | **+0.2370** [+0.2339, +0.2402] | **+0.2322** [+0.2306, +0.2338] | yes |
+| rerank - emb | **+0.2068** [+0.2039, +0.2095] | **+0.2032** [+0.2018, +0.2048] | yes |
+| rerank - fused | **+0.2047** [+0.2018, +0.2076] | **+0.2049** [+0.2034, +0.2064] | yes |
+
+Reported against all three rather than only the strongest, because "beats the best baseline"
+and "beats the baseline we happened to ship" are different claims.
+
+### The result that matters for Q9
+
+**The honest two-stage system beats the deliberately leaky one, and not narrowly.** `rerank`
+uses only features computable strictly before the impression; `fused+popularity` adds lifetime
+`total_inviews`, which embeds the future and cannot be served.
+
+| | val AUC | test AUC |
+|---|---|---|
+| rerank (servable) | **0.7575** | **0.7429** |
+| fused+popularity (not servable) | 0.5784 | 0.5797 |
+
+A1 framed the leak as worth +0.042 to +0.075 AUC and giving it up as "the cost of honesty". At
+the two-stage level that framing no longer holds: the behavioural axis done causally is worth
+roughly four times what the leak was worth, so honesty costs nothing here. It only looked
+expensive while the comparison was between single-signal retrieval systems.
+
+### Slices (val, AUC)
+
+cold = history <= 42 clicks; head = clicked article with >= 379 train clicks. Slice sizes are
+printed because a badly-placed threshold can silently select nearly everything.
+
+| slice | n | bm25 | fused | rerank | fused+popularity |
+|---|---|---|---|---|---|
+| cold | 6,463 | 0.5281 | 0.5612 | **0.7836** | 0.5843 |
+| warm | 57,902 | 0.5196 | 0.5518 | **0.7545** | 0.5778 |
+| head | 1,094 | 0.5091 | 0.6638 | **0.7046** | 0.7192 |
+| tail | 63,271 | 0.5207 | 0.5509 | **0.7584** | 0.5760 |
+
+Two things worth stating rather than leaving in the table:
+
+* **The re-ranker is better on cold users than warm ones** (0.7836 vs 0.7545), inverting the
+  usual expectation. Its top feature by gain is `pop_causal`, causally-valid popularity, which
+  needs no history at all. A user with no history is exactly where a popularity prior is the
+  best available signal and where the history-driven stage-one systems have least to work with.
+* **On head articles the leaky system beats the honest one** (0.7192 vs 0.7046), the only slice
+  where that happens, which is what you would predict: head articles are by definition those
+  whose lifetime `total_inviews` is largest, so that is where knowing the future is worth most.
+  1,094 impressions with overlapping intervals, so a caution rather than a finding.
+
+### Beyond accuracy (top-10, val)
+
+| system | diversity | novelty | coverage |
+|---|---|---|---|
+| bm25 | 0.8039 | 16.3525 | 0.1142 |
+| emb | 0.7906 | 16.3992 | 0.1130 |
+| fused | 0.7916 | 16.3909 | 0.1131 |
+| rerank | 0.8006 | 16.4824 | 0.1030 |
+| fused+popularity | 0.7963 | 16.3572 | 0.1099 |
+
+The re-ranker buys its +0.20 AUC at a real cost in **catalogue coverage**: 0.1131 -> 0.1030,
+about 9% fewer distinct articles ever reaching a top-10. Its novelty is the highest of any
+system, so it is not collapsing onto popular items; it concentrates on a narrower set of
+articles that are individually less-clicked. Named here as a tradeoff rather than reporting the
+accuracy gain alone.
+
+### Fusion still does not generalise on EB-NeRD
+
+`fused - emb` is **+0.0022** [+0.0010, +0.0034] on val and **-0.0017** [-0.0023, -0.0010] on
+test: both significant, opposite signs. This reproduces the A1 finding including its sign flip.
+The alpha is selected on val by rule and applied unchanged, so it is a real generalisation
+failure across the split boundary, not a selection artefact. Stage two makes it moot in
+practice, since `rerank` beats `fused` by +0.2047 either way.
