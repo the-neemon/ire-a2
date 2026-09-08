@@ -400,3 +400,77 @@ the query fixed while shrinking only the index.
 64.90 ms, and re-ranker training of 47.5 s and 97.8 s, on an otherwise-busy laptop. The second
 run is the recorded one. Treat single-run timings from this machine as good to roughly +/-20%,
 and never compare a number from here against one from the cluster.
+
+## 10. Y2a RESOLVED: the emb/sweep gap is future-click leakage, not `history_len` (A2)
+
+`src/features/sweep_history.py`'s uniform arm scores **0.6473** at N=10 while the `emb` feature
+scores **0.5506** per impression on the same split. Both are uniform-weighted mean user vectors,
+so the gap needed explaining before either could be quoted.
+
+**Cause: the two read different history files.** Not the `history_len: 30` truncation and not a
+normalisation difference, which were the two standing suspects. Both are ruled out below.
+
+Confirmed by making one implementation produce both numbers, varying only the history source.
+`src.features.sweep_history.user_vectors` and `.score` unchanged, EB-NeRD small val, laptop,
+2026-09-08:
+
+| history source | N=10 | N=30 |
+|---|---|---|
+| `train` + `validation` blocks (what `_engagement_weights` does) | **0.6473** | 0.6250 |
+| `train` block only (causally valid for a val impression) | 0.5416 | **0.5506** |
+
+The top-left cell reproduces the sweep exactly and the bottom-right reproduces `emb` exactly.
+Once the history source matches, `history_len` explains nothing: the two implementations agree.
+
+**The mechanism.** `_engagement_weights` loops `for block in ("train", "validation")` and assigns
+`out[uid] = ...`, so the validation block **overwrites** the train block for the 11,658 users
+present in both. EB-NeRD ships one `history.parquet` per block, each describing clicks before
+*that block's* log period. Our val split is carved out of the **train** block, so validation-block
+history for a val impression is history from the future.
+
+Measured directly, by comparing each impression's timestamp against the maximum
+`impression_time_fixed` of the validation-block history joined to it:
+
+| split | impressions | matched to validation-block history | with history at/after the impression |
+|---|---|---|---|
+| train | 168,522 | 144,087 | **143,998 (99.9%)** |
+| val | 64,365 | 61,026 | **60,901 (99.8%)** |
+| test | 244,647 | 244,647 | 0 (0.0%) |
+
+**Test is clean and train/val are not**, which follows from the split: test comes from the
+validation block, so validation-block history genuinely precedes it. The isolated size of the
+leak on this feature is **+0.0967 AUC** (0.5506 -> 0.6473).
+
+### What this invalidates, and what survives
+
+**Invalidated: the sweep's headline.** With leaked history the curve peaks at N=10 and falls
+away; with causally valid history the order **reverses**, N=30 (0.5506) beating N=10 (0.5416).
+The "peak at N=10" is an artefact of the leak, so the claim in `REPORT-NOTES.md` section 9 that
+the semantic degradation at large N "is real" is **not supported by this sweep**. The underlying
+EB-NeRD N=1 anomaly from A1 remains open and unexplained; this sweep cannot speak to it.
+
+**Also affected: three shipped re-ranker features.** `src/features/build.py::build` calls
+`_engagement_weights(name)` with no split argument, so `engage_sim`, `user_read` and
+`user_scroll` are built from the same overwritten history on every split. On train and val those
+three are not causally valid. `hist_len` is unaffected, being derived from the impressions'
+own `history` column, as are all six stage-one and popularity features.
+
+**What survives, stated so this is not over-claimed.** The headline two-stage result is
+reproduced on **test**, where the features are clean: `rerank - fused` is **+0.2049**
+[+0.2034, +0.2064] on test against +0.2047 on val, and test `rerank` AUC is 0.7429. So the
+conclusion that the behavioural axis is worth about +0.20 AUC does not rest on the leak. What
+does rest on it is every **val-selected** figure: the 13-arm ablation grid, `engage_sim`'s
++0.0085, LightGBM's early-stopping iteration count, and Q9's +0.0222, all of which are val
+numbers computed on contaminated features and all of which need re-running.
+
+**Not fixed here.** `src/features/` is Naman's lane under the 2026-09-08 anti-collision rules.
+The fix is to pass the split through to `_engagement_weights` and select the block that precedes
+it, rather than merging both. Flagged in `TASKS-2026-09-08-post-meeting.md`.
+
+**Why the existing leakage test did not catch it.** `tests/test_leakage.py` checks the
+*impressions'* `history_timestamps`, which are correct, and `tests/test_features_leakage.py`
+checks the feature builder's popularity window. Neither compares the engagement arrays against
+the impression timestamp, which is the assertion that would have fired. That is a fifth vacuous-
+coverage case in the same family as the four already recorded: the guard existed, but not over
+this path.
+
