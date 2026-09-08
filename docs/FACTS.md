@@ -515,3 +515,29 @@ questions, `mrr` how fast the user finds something they wanted and `mrr_all` how
 clicked set is placed, so replacing one with the other would trade one wrong comparison for
 another. **When quoting against a MIND leaderboard number, use `mrr_all`.**
 
+## 12. Y3: slice thresholds verified, the head/tail trap does not fire (A2)
+
+`CLAUDE.md` warns that over 90% of MIND articles have zero train clicks, so a 90th-percentile
+head/tail threshold would be 0 and `>=` would classify every impression as head. **Checked
+directly; it does not happen**, because `eval.slicing.by_article_popularity` takes the percentile
+over articles *actually seen in train* rather than over the whole catalogue. Machine: laptop,
+2026-09-08, test split of each dataset.
+
+| dataset | articles with 0 train clicks | head threshold | head | tail | cold threshold | cold | warm |
+|---|---|---|---|---|---|---|---|
+| MIND small | 60,192/65,238 (92.3%) | 152 clicks | 860 (1.2%) | 72,292 (98.8%) | 3 | 7,529 | 65,623 |
+| EB-NeRD small | 19,272/20,738 (92.9%) | 349 clicks | 803 (0.3%) | 243,844 (99.7%) | 34 | 25,105 | 219,542 |
+
+The zero-click share is confirmed at 92-93% on **both** datasets, so the hazard is real and the
+guard is what defuses it. Had the threshold been taken over the full catalogue it would have been
+0 on both and every impression would have landed in head.
+
+**The head slice is small and its intervals are correspondingly wide**: 860 and 803 impressions,
+just above the harness's 30-impression floor for reporting a slice at all. Head-slice differences
+should be read as indicative. This is why slice sizes are printed in every table rather than only
+the metric, and it is the direct answer to a viva question about what "head" meant here.
+
+MIND additionally has a `zero_history` slice of 2,214 impressions, users with no prior clicks at
+all. EB-NeRD small has none, its cold decile starting at 34 clicks, which is why the cold/warm
+threshold is per-dataset and reported rather than fixed.
+
