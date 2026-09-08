@@ -93,9 +93,12 @@ Each arm removes exactly one feature and retrains. Full model = 0.7575 on 64,365
 **Causally valid popularity is the single biggest win.** Removing it costs 0.0346; alone it
 reaches 0.6954. This was the highest-ranked item on the A2 plan and it delivered.
 
-**Engagement weighting beats uniform pooling**, +0.0085 in the full set, and standalone 0.5774
-against `emb`'s 0.5506 on identical rows. Same computation, `log1p(read_time_fixed)` weights
-instead of uniform. **Neither A1 system used the read-time column at all.**
+**`engage_sim` contributes +0.0085**, CI [+0.0075, +0.0096]. Neither A1 system used the
+read-time column at all. **But do not describe this as "engagement weighting beats uniform
+pooling".** A dedicated sweep (section 4) shows read-time weighting is *worse* than uniform at
+every history length from 5 to 50. `engage_sim` pools over the user's entire history while
+`emb` uses `history_len: 30`, so the two differ in two variables and the gain is attributable to
+the pooling length, not the weights.
 
 ### 3.2 Stage-one ablations (Yash, MIND and EB-NeRD demo)
 
@@ -123,6 +126,7 @@ variable.
 | `age_hours` as a ranker feature | +0.0003 [-0.0002, +0.0007] | same |
 | BM25 title-only on EB-NeRD | recall@200 -0.0049 [-0.0094, -0.0002] | rejected, opposite sign to MIND |
 | Disabling English stemming | -0.0023 [-0.0034, -0.0013] AUC | rejected, the plan's premise was wrong |
+| Read-time weighting of the user vector | worse than uniform at N=5,10,20,50; +0.0013 only at N=100 | **`info.md`'s prediction rejected** |
 
 **Carried from A1, still true, do not re-run:** body text in the BM25 index (-0.0166 AUC),
 Danish compound splitting (-0.0040), max-similarity pooling (-0.0030, confirmed independently on
@@ -283,9 +287,17 @@ split is small rather than because the effect is zero. The `ebnerd_small` re-run
 usable PyPI access.
 
 **Open, unexplained.** EB-NeRD BM25 recall@200 was more than 2x better at history N=1 than at any
-larger N in A1, while MIND improves monotonically with more history. The engagement-weighting
-result suggests a mechanism (low-quality clicks diluting the profile) but the N sweep that would
-test it has not been run.
+larger N in A1, while MIND improves monotonically with more history. The N sweep has now been run
+for the *semantic* user vector and shows a peak at N=10 falling away to N=100, so the degradation
+is real, but read-time weighting does not explain or fix it. The mechanism is still unknown, and
+the low-quality-click hypothesis from `info.md` is not supported by the weighting result.
+
+**Open, and it needs resolving before the report.** The sweep's uniform arm scores 0.6473 at
+N=10, while the `emb` feature from the A1 retrieval path scores 0.5506 per impression on the same
+split. Both are uniform-weighted mean user vectors, so they should be closer than that. The
+likely causes are the truncation (`history_len: 30` vs the sweep's explicit N) and a different
+normalisation in `src/retrieval/embeddings.py`. Until this is understood, do not quote the two
+numbers side by side as if they measure the same thing.
 
 **Open, definitional.** MIND official MRR 0.3198 against our offline 0.3548, while AUC and both
 nDCGs rose. Likely first-click versus all-clicks reciprocal rank. Resolve before quoting either.
