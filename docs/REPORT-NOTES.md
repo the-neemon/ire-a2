@@ -85,13 +85,32 @@ than an error, so it is verified against a figure produced elsewhere rather than
 
 **The full metric set (Q5), val, with CIs in `results/ebnerd_small_val.md`:**
 
-| system | AUC | MRR | nDCG@5 | nDCG@10 |
-|---|---|---|---|---|
-| bm25 | 0.5205 | 0.3418 | 0.3794 | 0.4607 |
-| emb | 0.5506 | 0.3594 | 0.4017 | 0.4778 |
-| fused | 0.5528 | 0.3628 | 0.4043 | 0.4807 |
-| **rerank** | **0.7575** | **0.5319** | **0.5967** | **0.6341** |
-| fused+popularity | 0.5784 | 0.3707 | 0.4184 | 0.4910 |
+| system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |
+|---|---|---|---|---|---|
+| bm25 | 0.5205 | 0.3418 | 0.3414 | 0.3794 | 0.4607 |
+| emb | 0.5506 | 0.3594 | 0.3589 | 0.4017 | 0.4778 |
+| fused | 0.5528 | 0.3628 | 0.3623 | 0.4043 | 0.4807 |
+| **rerank** | **0.7575** | **0.5319** | **0.5314** | **0.5967** | **0.6341** |
+| fused+popularity | 0.5784 | 0.3707 | 0.3703 | 0.4184 | 0.4910 |
+
+The two MRR columns differ by only ~0.0005 here, which is the confirming evidence for 9.2:
+EB-NeRD is 0.5% multi-click, so the two definitions almost coincide. On MIND, at 28.8%
+multi-click, the same comparison moves MRR by -0.0415.
+
+**The same set on test, which section 9.1 makes the numbers to quote for now**, since the
+val figures rest partly on contaminated engagement features and the test ones do not:
+
+| system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |
+|---|---|---|---|---|---|
+| bm25 | 0.5107 | 0.3257 | 0.3253 | 0.3577 | 0.4409 |
+| emb | 0.5397 | 0.3492 | 0.3487 | 0.3831 | 0.4627 |
+| fused | 0.5380 | 0.3474 | 0.3470 | 0.3813 | 0.4613 |
+| **rerank** | **0.7429** | **0.5149** | **0.5143** | **0.5750** | **0.6140** |
+| fused+popularity | 0.5797 | 0.3688 | 0.3684 | 0.4101 | 0.4841 |
+
+Test tracks val closely on every system, which is the evidence that the contamination in 9.1 has
+a bounded effect rather than carrying the result: `rerank` falls only 0.7575 to 0.7429, and
+`rerank - fused` is +0.2049 on test against +0.2047 on val.
 
 ### Slices: where the gain actually lands
 
@@ -133,6 +152,11 @@ less-clicked articles. Stated as a tradeoff rather than reporting the accuracy g
 ## 3. Ablations: what worked
 
 ### 3.1 The A2 re-ranker (paired bootstrap, 1000 resamples, shared, seed 13)
+
+> **Caveat added 2026-09-08, read section 9.1 before quoting this table.** Every number in it is
+> a **val** figure, and three of the ten features (`engage_sim`, `user_read`, `user_scroll`) were
+> built from future-contaminated history on train and val. The grid needs re-running once that is
+> fixed. The test-split headline is unaffected and is the number to quote in the meantime.
 
 Each arm removes exactly one feature and retrains. Full model = 0.7575 on 64,365 val impressions.
 
@@ -218,7 +242,7 @@ needs a `stem x stopwords` 2x2, which is a second variable and so its own ablati
 | BM25 title-only on EB-NeRD **demo** | AUC +0.0009 [-0.0062, +0.0081], recall@200 -0.0049 | rejected **at demo; reversed at `small`**, see 3.2 |
 | Danish stemming, EB-NeRD small | ranking flat within ±0.0004; recall@200 sign-flips across splits | A1's +22-36% prior **excluded**, kept for cost |
 | Disabling English stemming | -0.0023 [-0.0034, -0.0013] AUC | rejected, the plan's premise was wrong |
-| Read-time weighting of the user vector | worse than uniform at N=5,10,20,50; +0.0013 only at N=100 | **`info.md`'s prediction rejected** |
+| Read-time weighting of the user vector | worse than uniform at N=5,10,20,50; +0.0013 only at N=100 | **withdrawn, see 9.1**: measured on contaminated history, re-run before quoting |
 
 **Carried from A1, still true, do not re-run:** body text in the BM25 index (-0.0166 AUC),
 Danish compound splitting (-0.0040), max-similarity pooling (-0.0030, confirmed independently on
@@ -236,6 +260,10 @@ random), ANN indexes (10 to 20x faster but exact search was never the bottleneck
 | causal only, **ships** | 0.7575 |
 | + article lifetime aggregates | 0.7796 |
 | **difference** | **+0.0222** [+0.0207, +0.0235], significant |
+
+> **Caveat, see 9.1.** Both arms are val figures built on contaminated engagement features, so
+> +0.0222 needs re-measuring. The *direction* of the argument is robust, because the
+> contamination affects both arms identically, but the magnitude is not yet defensible.
 
 The leaky columns are `total_inviews`, `total_pageviews`, `total_read_time`, which aggregate an
 article's whole lifetime including time after the impression.
@@ -286,7 +314,8 @@ zero. The model does split on it, but the information is available elsewhere: a 
 had less time to accumulate clicks, so `pop_causal` already encodes most of it. Reporting gain
 instead of an ablation delta would have claimed a contribution that is not there.
 
-**One metric name, two definitions, twice.** `bm25.py` printed a **hit-rate@200** (share of
+**One metric name, two definitions, three times.** The full third case is in 9.2 and the
+history-file case in 9.1; the first is below. `bm25.py` printed a **hit-rate@200** (share of
 impressions with at least one clicked article retrieved) labelled as recall@200 (mean of
 found/clicked). They reconcile exactly: 0.0333 x 0.6775 = 0.0226. They agree only when
 impressions have one click, and MIND is 28.8% multi-click against EB-NeRD demo's 0.5%, which is
@@ -303,7 +332,8 @@ Writing both up as "inconclusive" would have been true and useless. The operatio
 ablation whose interval spans zero at demo scale gets re-run at `small` before a verdict is
 recorded, never written off.
 
-**Four vacuous tests found in this codebase.** A test that passes without asserting anything is
+**Five vacuous checks found in this codebase**, plus a sixth near-miss caught by injection
+before it could matter (9.4). A test that passes without asserting anything is
 worse than no test. (1) The MIND history-time leakage assertion guarded on dtype, but MIND's
 empty timestamp lists come back as `List(Datetime)` not `Null`, so it never skipped, every
 `list.max()` was null, `null >= t` is null, the filter dropped every row and it reported green
@@ -311,8 +341,16 @@ over 95,071 of 95,071 rows. (2) The Q9 serving-unavailable guard globbed paths t
 existing at the A1-to-`src/` port and scanned **zero files**. (3) An install script recorded
 `TF_OK=1` from pip's exit code while `import tensorflow` was broken throughout. (4) A job waiter
 used `pgrep -f` with a pattern that matched its own command line, so it reported a finished build
-as still running. **Every assertion now states what it checked and fails if that count is zero**,
-and both leakage guards are verified by injecting a violation and confirming they fire.
+as still running. **(5)** Neither leakage test covered the engagement arrays, so the future-click
+contamination in 9.1 survived a suite of nineteen passing tests, on 99.8% of val impressions.
+**Every assertion now states what it checked and fails if that count is zero**, and every leakage
+guard is verified by injecting a violation and confirming it fires.
+
+The pattern across all five is the same and it is worth naming: **each check verified a proxy
+rather than the artifact.** A dtype instead of the values, a glob instead of the files it should
+have matched, an exit code instead of the import, a process pattern instead of the job, a
+timestamp column instead of the array actually fed to the model. The rule adopted is that a test
+is not done until a violation has been injected and watched to fail.
 
 ---
 
@@ -405,7 +443,7 @@ bandwidth problem, not a FLOPs problem.**
 algebra.** With stage two in the path that is no longer true: every Python-side stage is roughly
 flat in corpus size, so its share *shrinks* as the catalogue grows, and making the re-ranker
 faster buys nothing at scale. The only lever that matters is replacing the exact index with an
-approximate one — the ANN row A1 measured and rejected as "10 to 20x faster but exact search was
+approximate one. That is the ANN row A1 measured and rejected as "10 to 20x faster but exact search was
 never the bottleneck at this scale", explicitly flagging a revisit at 10x. **This is that
 revisit and it says the opposite. ANN belongs on the A2 queue.**
 
@@ -489,17 +527,179 @@ quotes those two growth numbers it must quote the caveat with them.
 usable PyPI access.
 
 **Open, unexplained.** EB-NeRD BM25 recall@200 was more than 2x better at history N=1 than at any
-larger N in A1, while MIND improves monotonically with more history. The N sweep has now been run
-for the *semantic* user vector and shows a peak at N=10 falling away to N=100, so the degradation
-is real, but read-time weighting does not explain or fix it. The mechanism is still unknown, and
-the low-quality-click hypothesis from `info.md` is not supported by the weighting result.
+larger N in A1, while MIND improves monotonically with more history. **The claim that a semantic
+N sweep confirmed this is withdrawn** (see 9.1): that sweep scored on contaminated history, and on
+clean history the order reverses, N=30 beating N=10. So the anomaly stands entirely on the A1
+lexical measurement and has no independent confirmation. The mechanism is unknown, and the
+`info.md` low-quality-click hypothesis is neither supported nor refuted, because the weighting
+result that was read as refuting it came from the same contaminated sweep.
 
-**Open, and it needs resolving before the report.** The sweep's uniform arm scores 0.6473 at
-N=10, while the `emb` feature from the A1 retrieval path scores 0.5506 per impression on the same
-split. Both are uniform-weighted mean user vectors, so they should be closer than that. The
-likely causes are the truncation (`history_len: 30` vs the sweep's explicit N) and a different
-normalisation in `src/retrieval/embeddings.py`. Until this is understood, do not quote the two
-numbers side by side as if they measure the same thing.
+**RESOLVED, was "the 0.6473 against 0.5506 gap".** It was neither the `history_len: 30`
+truncation nor a normalisation difference. The two implementations read **different history
+files**, and one of them was reading the future. Full account in 9.1 and `FACTS.md` section 10.
 
-**Open, definitional.** MIND official MRR 0.3198 against our offline 0.3548, while AUC and both
-nDCGs rose. Likely first-click versus all-clicks reciprocal rank. Resolve before quoting either.
+**RESOLVED, was "MIND official MRR 0.3198 against our offline 0.3548".** First-click against
+all-clicks reciprocal rank, confirmed by measurement. See 9.2 and `FACTS.md` section 11.
+
+---
+
+## 9.1 The leakage found on 2026-09-08, and what it costs
+
+**This is the most consequential finding of the day and it changes how several numbers above
+must be read.** Full evidence and reproduction in `FACTS.md` section 10. Found while chasing the
+0.6473 against 0.5506 gap, which turned out to be a symptom rather than the problem.
+
+### What went wrong, in plain terms
+
+EB-NeRD ships the dataset in two blocks, `train` and `validation`, and **each block has its own
+`history.parquet`** describing what users clicked *before that block starts*. The feature builder
+loaded both and let the second overwrite the first, for the 11,658 users appearing in both.
+
+That would be harmless if our splits matched the blocks. They do not. Our **val split is carved
+out of the train block**, so a val impression ended up being described by history collected up to
+the *validation* block's start, which is later. The model was told what the user would click
+after the moment it was supposed to be predicting.
+
+### Measured
+
+| split | impressions | matched to validation-block history | with history at or after the impression |
+|---|---|---|---|
+| train | 168,522 | 144,087 | **143,998 (99.9%)** |
+| val | 64,365 | 61,026 | **60,901 (99.8%)** |
+| test | 244,647 | 244,647 | 0 (0.0%) |
+
+**Test is clean**, because test comes from the validation block, so that block's history genuinely
+precedes it. Train and val are not.
+
+Confirmed by making one implementation produce both disputed numbers with only the history source
+varying, rather than by argument:
+
+| history source | N=10 | N=30 |
+|---|---|---|
+| train + validation blocks merged | **0.6473** | 0.6250 |
+| train block only, causally valid | 0.5416 | **0.5506** |
+
+The top-left cell reproduces the sweep exactly; the bottom-right reproduces the `emb` feature
+exactly. **The leak is worth +0.0967 AUC on that one feature.**
+
+### What this invalidates
+
+1. **The history sweep's headline.** With the leak the curve peaks at N=10; with clean history
+   the order **reverses**, N=30 beating N=10. The "peak at small N" was an artefact. Section 4's
+   rejection of read-time weighting came from the same sweep and should be re-checked on clean
+   history before it is quoted.
+2. **Three of the ten re-ranker features.** `build()` calls the engagement loader with no split
+   argument, so `engage_sim`, `user_read` and `user_scroll` are not causally valid on train or
+   val. `hist_len` and the six stage-one and popularity features are unaffected.
+3. **Every val-selected number in sections 3.1 and 5.** The 13-arm ablation grid, `engage_sim`'s
+   +0.0085, LightGBM's early-stopping iteration count, and Q9's +0.0222 are all val figures
+   computed on contaminated features. **They need re-running before they go in the report.**
+
+### What survives, stated so this is not over-claimed
+
+**The headline is not retracted.** On test, where the features are clean, `rerank - fused` is
+**+0.2049** [+0.2034, +0.2064] against +0.2047 on val, and test `rerank` AUC is 0.7429. The claim
+that the behavioural axis is worth about +0.20 AUC does not rest on the leak. This is a
+correctness fix with a bounded blast radius, not a collapse of the result.
+
+### Status and ownership
+
+**Not fixed.** `src/features/` is Naman's lane under the anti-collision rules, so this was
+reported rather than patched. The fix is to pass the split through to the engagement loader and
+select the block that precedes it instead of merging both, then extend the feature leakage test
+to assert each engagement array's last click strictly precedes the impression, verified by
+injection.
+
+## 9.2 MIND MRR: first click against all clicks
+
+`FACTS.md` section 11. Our offline 0.3548 against the leaderboard's 0.3198, while AUC and both
+nDCGs rose. **Third instance in this project of one metric name covering two definitions.**
+
+MIND's official scorer averages the reciprocal rank over **every** clicked article. Ours credited
+only the best-placed one. Measured on MIND small test with BM25, 73,152 impressions:
+
+| definition | MRR |
+|---|---|
+| first clicked article only (ours) | **0.3108** |
+| mean over all clicked articles (MIND official) | **0.2693** |
+| paired difference | **-0.0415** [-0.0423, -0.0405] |
+
+**AUC (0.5685) and nDCG@10 (0.3479) are identical under both**, because neither reads which click
+came first. That is exactly the reported signature of MRR falling while AUC and the nDCGs rose.
+
+The effect is **entirely multi-click**: the 71.2% of impressions with one click score identically
+under both definitions, maximum absolute difference exactly 0.0, and the 28.8% with more than one
+go 0.3095 to 0.1657. On EB-NeRD, at 0.5% multi-click, the two definitions differ by only 0.0005.
+**The size of the discrepancy is a property of the dataset, not of the ranker.**
+
+**The arithmetic cannot be closed exactly, and the report should say so** rather than implying a
+reconciliation: 0.3548 was MIND *small* test and 0.3198 was MIND *large* test, whose click
+distribution we cannot observe. Measured ratio 0.867 against the observed 0.901, same direction
+and magnitude.
+
+`eval.metrics.mrr_all` now implements the official definition and both columns are reported.
+Neither is swapped in for the other, because they answer different questions: `mrr` asks how fast
+the user finds something they wanted, `mrr_all` asks how well the whole clicked set is placed.
+**When quoting against a MIND leaderboard number, use `mrr_all`.**
+
+## 9.3 Slice thresholds: the trap that did not fire
+
+`FACTS.md` section 12. Over 90% of articles in both datasets have zero train clicks, so a
+percentile taken over the whole catalogue would be **0**, and a `>=` comparison would classify
+every impression as head. Checked directly rather than assumed.
+
+| dataset | articles with 0 train clicks | head threshold | head | tail | cold threshold | cold | warm |
+|---|---|---|---|---|---|---|---|
+| MIND small | 60,192/65,238 (92.3%) | 152 clicks | 860 (1.2%) | 72,292 (98.8%) | 3 | 7,529 | 65,623 |
+| EB-NeRD small | 19,272/20,738 (92.9%) | 349 clicks | 803 (0.3%) | 243,844 (99.7%) | 34 | 25,105 | 219,542 |
+
+The guard is that `eval.slicing.by_article_popularity` takes the percentile over articles
+**actually seen in train**, excluding the zeros. The hazard is real on both datasets and this is
+what defuses it.
+
+**The head slice is small**, 860 and 803 impressions, just above the harness's 30-impression floor
+for reporting a slice at all, so its intervals are wide and its differences are indicative only.
+This is why slice sizes are printed in every table, and it is the direct answer to a viva question
+about what "head" meant. MIND additionally has a `zero_history` slice of 2,214 impressions;
+EB-NeRD small has none, its cold decile starting at 34 clicks.
+
+## 9.4 Q7: what was actually submitted
+
+`FACTS.md` section 13, design-note section `docs/report/q7-leaderboard-submissions.md`.
+
+| | MIND | EB-NeRD |
+|---|---|---|
+| impressions | **2,370,727** | **13,536,710** |
+| archive | `mind_prediction.zip`, 107.3 MB | `ebnerd_predictions.zip`, 230.0 MB |
+| inner filename | `prediction.txt` (singular) | `predictions.txt` (plural) |
+| validated offline | yes, all checks | yes, all checks |
+
+Build cost for the EB-NeRD full test set on the laptop: **6 m 28 s, peak RSS 5.90 GB**, about
+34,900 impressions/s. Peak RSS is flat against dataset size because the stream reads in slices;
+the 5.90 GB is dominated by the 125,500 x 768 article matrix, not by the impressions.
+
+**The uploaded system is the embeddings-only scorer, which is not our headline system.** On
+EB-NeRD small test it reads 0.5397 AUC against `fused` 0.5380, `bm25` 0.5107 and the two-stage
+`rerank` **0.7429**, so the leaderboard entry sits roughly 0.20 AUC below the system this document
+describes. The gap is structural: the re-ranker's features need `pop_causal` and the engagement
+columns, which the held-out test sets do not ship in a usable form. BM25 was excluded separately
+for cost, measured at roughly 1.6 h for MIND-large's 2M distinct histories. **Reported as two
+different systems rather than letting the better offline number stand in for the uploaded one.**
+
+**Upload and screenshots are still outstanding** and need a Codabench login. MIND allows one
+submission per day, so that clock matters.
+
+### A sixth structural check, and a sixth near-miss
+
+`src/submission/validate.py` checks inner filename, zip contents, row count, row order and that
+every row is a permutation of 1..n, offline, before upload. Row order is the check that earns its
+keep: ranks are **positional** against the test file's candidate order, so a correctly-ranked but
+reordered file scores as a plausible bad model rather than erroring. A previous submission on this
+project covered 0.84% of the test set and scored 0.5012, exactly random.
+
+**Verified non-vacuous by injecting five violations** (wrong inner filename, two rows swapped,
+truncation to 420 of 50,000 rows, a duplicated rank, a folder inside the zip); all five exit 1 and
+the real file exits 0. **It immediately caught a real bug**, a path in the validator itself that
+read `behaviors.parquet` where the bundle nests it under `test/`. A validator that reads a
+different file from the writer validates nothing, which is the same family as the vacuous tests in
+section 6.

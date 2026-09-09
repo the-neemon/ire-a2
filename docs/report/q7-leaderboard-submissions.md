@@ -13,7 +13,7 @@ that scores 0.7429 per-impression AUC on EB-NeRD small test.
 Offline, on our own splits, embeddings-only is:
 
 * on EB-NeRD, **the weakest of the three stage-one systems** on test AUC: emb 0.5397 against
-  bm25 0.5107 and fused 0.5380 — and far below rerank's 0.7429
+  bm25 0.5107 and fused 0.5380, and far below rerank's 0.7429
 * below `fused` on MIND by +0.0014 AUC in the A1 measurement
 
 So the leaderboard number understates the system described in the rest of this report, and the
@@ -38,8 +38,8 @@ in for a weaker uploaded one would be the actual error.
 | MIND (Codabench 13967) | 2.37M | 120,961 | |
 
 Neither fits in memory at once, so `submit.py` streams in slices rather than reusing the offline
-retrieval path, which materialises every impression. **The scoring semantics are identical** —
-mean of the last `history_len` article vectors, L2-normalised, cosine against each candidate —
+retrieval path, which materialises every impression. **The scoring semantics are identical**,
+mean of the last `history_len` article vectors, L2-normalised, cosine against each candidate,
 and only the execution differs. Which article vectors are used comes from the same
 `configs/datasets.yaml` key the offline path reads, so the encoder chosen by ablation cannot
 silently diverge between the report and the submission.
@@ -60,7 +60,7 @@ with 1 best. Three traps, each of which has cost time on this project or is docu
    rather than erroring.
 2. **The inner filename differs between the two competitions.** MIND wants `prediction.txt`
    singular; EB-NeRD wants `predictions.txt` plural. Nothing else about the format differs.
-3. **The zip must contain the text file and nothing else** — no directories, no `__MACOSX`.
+3. **The zip must contain the text file and nothing else**: no directories, no `__MACOSX`.
 
 ## Partial output is prevented structurally, not remembered
 
@@ -70,7 +70,7 @@ path. It looked like a valid submission and a bad model.
 
 `submit.py --limit N` now writes to `SMOKE-<N>-<name>` and prints that it is not submittable, so
 a truncated run cannot occupy the path the real artifact uses. This is the project's most
-repeated class of failure — output that is well-formed and wrong — and it is the same shape as
+repeated class of failure, output that is well-formed and wrong, and it is the same shape as
 the mis-ordered join in Q5 and the vacuous tests in the methodology section.
 
 ## Submission budget

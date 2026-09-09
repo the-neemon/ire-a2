@@ -238,7 +238,7 @@ Worth carrying into Q5: this is the same class of error as the open MIND MRR que
 definitions. When a number fails to reproduce on exactly one dataset, check the definition against
 that dataset's click-count distribution before suspecting the data.
 
-## 7. Candidate generation — recall@K, full-corpus retrieval (A2)
+## 7. Candidate generation: recall@K, full-corpus retrieval (A2)
 
 Share of an impression's clicked articles found in the top K drawn from the **whole catalogue**,
 not the pool the log showed. Distinct from section 6, which re-ranks the shown pool. Cold-start

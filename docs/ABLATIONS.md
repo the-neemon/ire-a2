@@ -41,7 +41,7 @@ a flag and measure it against the system without it.
 | 10 | Better MIND article vectors than 87%-coverage mean-pooled entities | MIND | | | | planned |
 | 11 | Q3 required: one principled improvement over the reproduced NRMS baseline | both | | | | planned |
 
-### 6 and 7 in full — BM25 field and stemming, measured 2026-09-04
+### 6 and 7 in full: BM25 field and stemming, measured 2026-09-04
 
 Both were carried into the A2 queue as *partially* measured: A1 had numbers for each, but on a
 different codebase and a different scale, and neither had a paired CI. This is that
@@ -61,7 +61,7 @@ one would be the mistake:
   what Q2's two-stage pipeline consumes: an article the retriever never surfaces cannot be
   re-ranked into the answer no matter how good the re-ranker is.
 
-#### 6a. English stemming on MIND — **rejected**, keep stemming on
+#### 6a. English stemming on MIND: **rejected**, keep stemming on
 
 Delta of turning stemming **off**, baseline is stemming on.
 
@@ -93,7 +93,7 @@ disable English stemming while A1-naman's AUC gain sat in the same file. Both nu
 they simply answer different questions, and only pairing them per split with a CI makes the
 trade-off legible. The hypothesis as stated is what is rejected here, not either A1 number.
 
-#### 6b. Danish stemming on EB-NeRD demo — **inconclusive on accuracy**, kept on cost
+#### 6b. Danish stemming on EB-NeRD demo: **inconclusive on accuracy**, kept on cost
 
 Delta of turning stemming **off**, baseline is stemming on.
 
@@ -125,7 +125,7 @@ had no stopword list, making it the *combined* effect of both. Not yet tested di
 `stem x stopwords` as a 2x2 is the obvious follow-up and is cheap here (four ~1 s index builds),
 but it is a second changed variable and therefore a separate ablation, not this row.
 
-#### 7a. MIND documents title-only — **shipped-pending**, one decision short
+#### 7a. MIND documents title-only: **shipped-pending**, one decision short
 
 Delta of dropping `abstract` from the indexed document, baseline is title + abstract.
 
@@ -151,7 +151,7 @@ Left as `shipped-pending` rather than shipped. The measurement supports the chan
 ships is a decision for the team, not one to apply unilaterally from an ablation result, so
 `configs/datasets.yaml` still carries `title_abstract` for both datasets.
 
-#### 7b. EB-NeRD demo documents title-only — **rejected**
+#### 7b. EB-NeRD demo documents title-only: **rejected**
 
 Delta of dropping `abstract` (EB-NeRD's `subtitle`), baseline is title + abstract.
 
@@ -170,7 +170,7 @@ its central claim, which is the one that keeps recurring across both A1 systems 
 **more text helps retrieval and hurts re-ranking.** The two datasets want opposite settings for
 the same knob, which is precisely why the field is worth making per-dataset rather than global.
 
-### 6c and 7c — the same two ablations at `ebnerd_small`, 10x scale, measured 2026-09-08
+### 6c and 7c: the same two ablations at `ebnerd_small`, 10x scale, measured 2026-09-08
 
 The EB-NeRD verdicts above were demo scale: 11,777 articles, 6,872 val impressions, with
 intervals three to five times wider than MIND's. `README.md` excludes demo from reported
@@ -181,7 +181,7 @@ numbers, so these are the rows that count. `ebnerd_small` is 20,738 articles and
 evidence for the methodological point that follows, and deleting a superseded measurement
 destroys that.
 
-#### 7c. EB-NeRD small, documents title-only — **the demo verdict reverses**
+#### 7c. EB-NeRD small, documents title-only: **the demo verdict reverses**
 
 Delta of dropping `abstract`, baseline is title + abstract.
 
@@ -220,7 +220,7 @@ supports the change on ranking metrics for both datasets, but it costs stage-one
 EB-NeRD val, and Q2's re-ranker consumes exactly that recall. That makes it a pipeline-level
 decision rather than a retrieval-level one, and it is the team's to take.
 
-#### 6c. EB-NeRD small, Danish stemming — **the A1 prior does not reproduce, now conclusively**
+#### 6c. EB-NeRD small, Danish stemming: **the A1 prior does not reproduce, now conclusively**
 
 Delta of turning stemming **off**, baseline is stemming on.
 
