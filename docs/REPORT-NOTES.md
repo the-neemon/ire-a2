@@ -607,11 +607,22 @@ correctness fix with a bounded blast radius, not a collapse of the result.
 
 ### Status and ownership
 
-**Not fixed.** `src/features/` is Naman's lane under the anti-collision rules, so this was
-reported rather than patched. The fix is to pass the split through to the engagement loader and
-select the block that precedes it instead of merging both, then extend the feature leakage test
-to assert each engagement array's last click strictly precedes the impression, verified by
-injection.
+**Fixed, 2026-09-08**, in the lane that owns it. The engagement loader now takes the split and
+reads one block, chosen from the same `early_root` / `test_root` config keys `split.py` uses so
+the two cannot drift apart. The merge loop is gone.
+
+Confirmed by running both paths side by side on EB-NeRD small val: the fixed source gives 0
+violations over 64,365 matched impressions, the block the merge used to select gives 60,901 of
+61,026 at 99.8%, reproducing the measurement above exactly.
+
+The missing assertion now exists: `tests/test_features_leakage.py` joins each split's
+impressions against the history block that split actually reads and requires no click at or
+after the impression using it, with an injection companion that must fail. The block-per-split
+rule is restated in the test rather than imported, so a regression in the loader cannot take the
+test with it.
+
+What this does not do is re-run anything. Every val-selected figure listed above was measured on
+contaminated features and still needs regenerating.
 
 ## 9.2 MIND MRR: first click against all clicks
 
