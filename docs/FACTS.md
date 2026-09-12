@@ -101,8 +101,12 @@ A2 Q4.1 requires measured footprints, so every `TO MEASURE` row below is graded 
 
 **Every row here records the machine.** A p99 measured on the laptop and a QPS measured on a cluster
 node are not comparable, and the whole set backing one comparison must come from one machine. Two
-machines are in play: `laptop` (20 cores, no GPU, 15 GB RAM) and `cluster` (GPU node, describe the
-card and core count in the row). Describe hardware, never hostnames, usernames or paths.
+machines are in play, and they are NOT the same box, so the label alone is not enough:
+`laptop-naman` (i7-13700H, 14 physical / 20 logical cores, no GPU, 15 GB RAM),
+`laptop-yash` (8 physical / 12 logical cores, no GPU, 15.3 GB RAM) and `cluster` (GPU node,
+describe the card and core count in the row). A row that says only `laptop` predates this
+split and should be read as unverified on either box. Describe hardware, never hostnames,
+usernames or paths.
 
 | Fact | Value | Scope | Machine | Method | Source | Date |
 |---|---|---|---|---|---|---|
@@ -140,13 +144,13 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | Embeddings + FAISS, all 3 splits | 88.4 s wall, **peak RSS 7.04 GB** | EB-NeRD small | laptop | `... -m src.retrieval.embeddings ebnerd_small` | A2 | 2026-09-04 |
 | Embeddings: MiniLM encode 65,238 articles + FAISS, all 3 splits | 967.8 s wall (16 m 8 s), peak RSS 2.50 GB | MIND small | laptop | `/usr/bin/time -f ... -m src.retrieval.embeddings mind_small` | A2 | 2026-09-04 |
 | Leakage suite, 19 tests, data present | 28.2 s, 19 passed 0 skipped | all dev tiers | laptop | `make test` | A2 | 2026-09-04 |
-| **Single-request latency, end to end** | **p50 22.06 ms / p95 48.94 ms / p99 64.90 ms**, max 90.75 ms | EB-NeRD small val, 2,000 unbatched requests | laptop, 8 physical / 12 logical cores | `python -m src.eval.bench ebnerd_small --requests 2000` | A2 | 2026-09-08 |
+| **Single-request latency, end to end** | **p50 22.06 ms / p95 48.94 ms / p99 64.90 ms**, max 90.75 ms | EB-NeRD small val, 2,000 unbatched requests | laptop-yash, 8 physical / 12 logical cores | `python -m src.eval.bench ebnerd_small --requests 2000` | A2 | 2026-09-08 |
 | Latency by stage, p50 | tokenise 0.70 / bm25 1.36 / **ann 13.55** / features 0.32 / rerank 5.02 ms | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
 | Latency by stage, p99 | tokenise 3.13 / bm25 8.16 / **ann 45.41** / features 1.18 / rerank 29.47 ms | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
 | ANN share of p50 | 61% of end-to-end | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
 | SLA verdict | p99 64.90 ms against a 100 ms target: **meets**, 1.5x headroom | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
 | Serial throughput, one core | 45 QPS | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
-| Whole-box capacity | 363 QPS over 8 physical cores, **projected** (assumes linear scaling) | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
+| Whole-box capacity | 363 QPS over 8 physical cores, **projected** (assumes linear scaling) | EB-NeRD small val | laptop-yash | same | A2 | 2026-09-08 |
 | Cost per 1000 queries | $0.000245, **projected** at an assumed $0.040/vCPU-hour | EB-NeRD small val | laptop | same | A2 | 2026-09-08 |
 | Scaling, ann p50 vs corpus | 0.59 -> 11.39 ms for 2,074 -> 20,738 articles: **19.4x for 10x**, super-linear | EB-NeRD small | laptop | `--scale-points 0.1 0.25 0.5 1.0` | A2 | 2026-09-08 |
 | Scaling, flat stages | rerank 3.9x, features 2.4x for the same 10x corpus | EB-NeRD small | laptop | same | A2 | 2026-09-08 |
@@ -201,7 +205,8 @@ card and core count in the row). Describe hardware, never hostnames, usernames o
 | fused | 0.5380 [0.5367, 0.5392] | 0.3474 | 0.3813 | 0.4613 | test, EB-NeRD small | A2 |
 | fused+popularity (leaky, not servable) | 0.5797 [0.5785, 0.5810] | 0.3688 | 0.4101 | 0.4841 | test, EB-NeRD small | A2 |
 | **A2 two-stage pipeline, MIND** | **TO MEASURE** | | | both | A2 |
-| **NRMS baseline reproduction** | **TO MEASURE** | | | | both, Q3 | A2 |
+| **NRMS baseline reproduction (their split)** | val AUC **0.6484**, see section 14 | | | | EB-NeRD small, Q3 | A2 |
+| **NRMS on our split (comparable)** | **IN PROGRESS**, see section 14 | | | | EB-NeRD small, Q3 | A2 |
 
 ### Resolved: the MIND "recall@200 does not reproduce" gap was a mislabelled metric
 
@@ -364,14 +369,21 @@ practice, since `rerank` beats `fused` by +0.2047 either way.
 
 ## 9. Q4: what breaks first at 10x, and the machine caveat (A2)
 
-Full report in `results/bench_ebnerd_small.md`. Machine: laptop, **8 physical / 12 logical
-cores**, 15.3 GB RAM, no GPU.
+Full report in `results/bench_ebnerd_small.md`. Machine: **laptop-yash**, 8 physical /
+12 logical cores, 15.3 GB RAM, no GPU.
 
-**Correction to the environment note.** `CLAUDE.md` describes this machine as "20 cores".
-`psutil` and `nproc` both report 12 logical and 8 physical. Every capacity figure here uses 8,
-the physical count, because this path is dense float work in BLAS and LightGBM where a
-hyperthread shares an execution port and adds much less than a real core. Anything previously
-scaled by 20 is overstated by 2.5x.
+**The environment note was not wrong, the machines differ.** This section originally recorded
+a correction saying `CLAUDE.md`'s "20 cores" was wrong and that anything scaled by 20 was
+overstated by 2.5x. Checked on laptop-naman: `nproc` reports 20 and `lscpu` reports an
+i7-13700H with 14 physical cores (6 P-cores plus 8 E-cores) and 2 threads per P-core, so 20
+logical is accurate for that box. The 8 physical / 12 logical reading is laptop-yash. Both
+were filed under one `laptop` label, which is what made one look like a correction to the
+other. No previously reported figure needs rescaling; the bench numbers here are simply
+laptop-yash numbers and are not reproducible on laptop-naman.
+
+Capacity figures here still use 8, the physical count of the machine they ran on, because this
+path is dense float work in BLAS and LightGBM where a hyperthread shares an execution port and
+adds much less than a real core. That reasoning is sound and unaffected.
 
 **`ann` is the bottleneck and it breaks first.** It is 61% of p50 at full corpus and its cost
 grows **19.4x for a 10x corpus**, which is super-linear where `IndexFlatIP` should be at worst
@@ -463,9 +475,18 @@ does rest on it is every **val-selected** figure: the 13-arm ablation grid, `eng
 +0.0085, LightGBM's early-stopping iteration count, and Q9's +0.0222, all of which are val
 numbers computed on contaminated features and all of which need re-running.
 
-**Not fixed here.** `src/features/` is Naman's lane under the 2026-09-08 anti-collision rules.
-The fix is to pass the split through to `_engagement_weights` and select the block that precedes
-it, rather than merging both. Flagged in `TASKS-2026-09-08-post-meeting.md`.
+**FIXED, 2026-09-08.** `_engagement_weights(cfg, split)` now reads a single block, chosen from
+the same `early_root` / `test_root` config keys `split.py` uses so the two cannot drift apart:
+train and val take `early_root`, test takes `test_root`. The merge loop is gone.
+
+Confirmed by making the two paths produce their numbers side by side on EB-NeRD small val:
+
+| history source | matched impressions | with history at/after the impression |
+|---|---|---|
+| `early_root` block (the fix) | 64,365 | **0 (0.0%)** |
+| `validation` block (what the merge selected) | 61,026 | **60,901 (99.8%)** |
+
+The 99.8% reproduces the independently measured figure above exactly.
 
 **Why the existing leakage test did not catch it.** `tests/test_leakage.py` checks the
 *impressions'* `history_timestamps`, which are correct, and `tests/test_features_leakage.py`
@@ -473,6 +494,17 @@ checks the feature builder's popularity window. Neither compares the engagement 
 the impression timestamp, which is the assertion that would have fired. That is a fifth vacuous-
 coverage case in the same family as the four already recorded: the guard existed, but not over
 this path.
+
+**Now covered.** `tests/test_features_leakage.py` gains
+`test_engagement_history_is_strictly_before_its_impressions`, which joins each split's
+impressions against the history block that split actually reads and asserts no click falls at or
+after the impression using it, plus a companion injection test. The block-per-split rule is
+restated in the test rather than imported from `build.py`, so a regression there cannot silently
+take the test with it. Non-vacuity is asserted on both the join cardinality and the null count,
+because an empty join is exactly how the MIND history assertion reported green over 95,071 rows
+while checking none of them. The module docstring's claim that non-popularity features "come from
+history arrays that are past by construction" was the false premise that let this through and has
+been corrected: that holds within a block, not across two.
 
 ## 11. Y2b RESOLVED: MIND MRR is first-click against all-clicks (A2)
 
@@ -592,3 +624,53 @@ writes to a `SMOKE-` prefix that cannot occupy the submission filename.
 here: wrong inner filename, two rows swapped, truncation to 420 of 50,000 rows, a duplicated
 rank, and a folder inside the zip. All five fail with exit 1; the real file exits 0.
 
+## 14. Q3: the NRMS baseline, and why one run is not comparable to ours (A2)
+
+Machine: **cluster**, one u22 node, 16 CPU cores, no GPU used. TensorFlow is CPU-only here, which
+is not a limitation for this model at this scale: a full epoch is about 17 minutes.
+
+### 14.1 Faithful reproduction, the benchmark's own split
+
+`ebnerd_nrms_docvec.py` unmodified, `ebnerd_small`, contrastive_vector document embeddings,
+history_size 20, title_size 768, npratio 4, batch 32, seed 16.
+
+| Fact | Value |
+|---|---|
+| Best val AUC | **0.6484** |
+| Best epoch | 3 of 10, early-stopped at 7 (patience 4) |
+| Wall time | 54 min 11 s |
+| Peak RSS | 2.87 GB at the 5% timing probe |
+
+**This number is not comparable to our re-ranker's 0.7429.** The benchmark concatenates the
+provided `train` and `validation` blocks, trains on both, then carves its own validation out of
+the last day of that pool. Against our temporal split that means it trains on our train, our val
+*and* our test, and early-stops on a slice of its own training window. It reproduces their setup
+faithfully, which is what Q3 part one asks for, and it answers no question about relative quality.
+
+### 14.2 The comparable run, our temporal split
+
+`src/models/nrms_oursplit.py` (also staged on the cluster) drives the same model, hparams,
+document vectors and dataloader from `impressions_{train,val,test}.parquet`: trains on our train,
+early-stops on our val, scores our test exactly once. Output is written in the re-ranker's flat
+schema, `impression_id | candidate | label | score`, so `src.eval.run` reads both identically.
+
+Status: smoke pass running at the time of writing; the full run has not been recorded.
+
+Two guards in that driver are worth keeping, both aimed at failures that return a plausible
+number rather than an error:
+
+- **Article-id coverage.** Our pipeline carries article ids as strings, the document-vector
+  parquet keys them as Int32, and the dataloader's `unknown_representation="zeros"` turns every
+  miss into a zero vector. A dtype mismatch would therefore train on noise and report a
+  believable AUC. The driver asserts coverage and fails below 95%. Measured at the smoke pass:
+  **1.0000 on all four checks** (train and val, candidates and history).
+- **Score alignment.** Per-impression score lists are asserted to match the candidate list
+  length before the flat explode, and the label join is asserted to leave no nulls.
+
+### 14.3 The split history is clean, unlike the engagement history
+
+Checked directly, since section 10's leak made the question live: in
+`impressions_{train,val,test}.parquet`, **0.0% of impressions on all three splits** have any
+history timestamp at or after their own timestamp. `split.py` takes history from the correct
+block. The section 10 leak is confined to `_engagement_weights` in `src/features/build.py` and
+does not touch the NRMS feed.
