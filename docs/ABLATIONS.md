@@ -342,7 +342,11 @@ that contain both classes; pooled AUC is not used and the reason is a row below.
 removes exactly one feature and retrains. CIs are paired bootstrap, 1000 resamples, shared
 across arms, seed 13.
 
-**Full model: val 0.7575, test 0.7429.**
+> **SUPERSEDED 2026-09-12.** The table below was measured on features carrying the engagement
+> future-click leak (FACTS section 10). It is kept because it is the evidence for what the leak
+> was worth. The current numbers are directly beneath it.
+
+**Contaminated, superseded: full model val 0.7575, test 0.7429.**
 
 | arm | val AUC | full - arm | 95% CI | significant |
 |---|---|---|---|---|
@@ -359,20 +363,50 @@ across arms, seed 13.
 | minus age_hours | 0.7572 | +0.0003 | [-0.0002, +0.0007] | **no** |
 | minus recency | 0.7574 | +0.0001 | [-0.0003, +0.0006] | **no** |
 
+### CURRENT, clean features, 2026-09-12
+
+**Full model: val 0.7489, test 0.7461.** Seed 13 carried forward for continuity with the
+superseded run.
+
+| arm | val AUC | full - arm | 95% CI | sig | test delta | sig |
+|---|---|---|---|---|---|---|
+| stage1_only (bm25 + emb) | 0.5498 | **+0.1991** | [+0.1963, +0.2020] | yes | **+0.2031** | yes |
+| pop_only (pop_causal alone) | 0.6954 | +0.0535 | [+0.0517, +0.0553] | yes | +0.0605 | yes |
+| minus pop_causal | 0.7126 | +0.0363 | [+0.0346, +0.0379] | yes | +0.0403 | yes |
+| minus cat_match | 0.7451 | +0.0038 | [+0.0027, +0.0048] | yes | +0.0047 | yes |
+| minus bm25 | 0.7480 | +0.0009 | [+0.0004, +0.0015] | yes | +0.0008 | yes |
+| minus engage_sim | 0.7487 | +0.0002 | [-0.0004, +0.0009] | **no** | +0.0012 | yes |
+| minus hist_len | 0.7489 | +0.0000 | [-0.0004, +0.0004] | **no** | +0.0006 | yes |
+| minus emb | 0.7490 | -0.0001 | [-0.0006, +0.0004] | **no** | +0.0010 | yes |
+| minus age_hours | 0.7491 | -0.0002 | [-0.0008, +0.0003] | **no** | +0.0012 | yes |
+| minus user_scroll | 0.7493 | -0.0004 | [-0.0009, +0.0001] | **no** | +0.0009 | yes |
+| minus recency | 0.7493 | -0.0004 | [-0.0010, +0.0001] | **no** | -0.0001 | no |
+| minus user_read | 0.7496 | **-0.0006** | [-0.0012, -0.0002] | **yes, negative** | +0.0002 | no |
+
+Test rose from 0.7429 to 0.7461 even though val fell, because test features were always correct
+(the test split is drawn from the same block its history comes from) and only the model changed.
+`stage1_only` and `pop_only` are bit-identical across the two runs, since neither reads an
+engagement feature, which localises the fix to exactly the arms it should have touched.
+
 ### What the table says
 
-**The behavioural axis is worth +0.2077 AUC over stage one alone.** That is larger than every
-Assignment-1 result combined and it is the answer to "what did adding click-log signal buy".
+**The behavioural axis is worth +0.1991 AUC on val and +0.2031 on test, over stage one alone.**
+That is larger than every Assignment-1 result combined and it is the answer to "what did adding
+click-log signal buy". The val and test intervals overlap, so it generalises.
 
-**Causally valid popularity is most of it.** Alone it reaches 0.6954, above any complete A1
-system. Removing it from the full set costs 0.0346, the largest single-feature contribution.
-The +0.075 that *leaky* lifetime popularity bought in A1 therefore largely survives the causal
-restriction, which was the open question that motivated the feature.
+**Causally valid popularity is most of it, and more so than before.** Alone it reaches 0.6954,
+above any complete A1 system. Removing it from the full set costs 0.0363 val and 0.0403 test, the
+largest single-feature contribution by a wide margin. The +0.075 that *leaky* lifetime popularity
+bought in A1 therefore largely survives the causal restriction, which was the open question that
+motivated the feature.
 
-**Engagement weighting beats uniform pooling.** `engage_sim` (history embeddings weighted by
-`log1p(read_time_fixed)`) is worth +0.0085 over the full set, and standalone it scores 0.5774
-against `emb`'s 0.5506 on identical rows. Same computation, different weights, so it is a clean
-one-variable comparison. Neither A1 system used the read-time column at all.
+**WITHDRAWN: "engagement weighting beats uniform pooling".** This claim stood on `engage_sim`
+being worth +0.0085 and standalone scoring 0.5774 against `emb`'s 0.5506. Both numbers came from
+leaked history. On clean features the ranker-level effect is +0.0002 [-0.0004, +0.0009], not
+significant, and the standalone gap disappears once both sides read the same history source. The
+read-time-weighted user vector does not beat the uniform one in the ranker. See the re-run sweep
+below, which finds a small positive weighting effect on the isolated feature but no ranker-level
+survival, and which reverses a different A1 claim in the process.
 
 **Gain is not contribution, and this is the row to remember.** `recency` has the third-highest
 LightGBM gain (161,327, behind only pop_causal and engage_sim) yet removing it changes the
@@ -436,12 +470,52 @@ scoring packages recursively, asserts it saw at least ten files, and was verifie
 a violation and confirming it fails. Third vacuous test found in this project.
 
 
-## History length x weighting sweep: info.md's prediction is REJECTED
+## History length x weighting sweep: BOTH VERDICTS REVERSED on clean history
+
+> **The version of this sweep that "REJECTED" info.md's prediction ran on leaked history.** Its
+> table is kept below the current one because it is the evidence for what the leak did to the
+> shape of the curve.
 
 `info.md` predicted that read-time weighting "may recover the benefit of large N that uniform
-mean-pooling throws away". Measured on EB-NeRD small val, 64,365 impressions, 18,827 users.
-Per-impression AUC of the similarity feature alone, so the result is about the user vector and
-nothing else. Both arms use the same code path and the same N; only the weights differ.
+mean-pooling throws away". Measured on EB-NeRD small val, 64,365 impressions. Per-impression AUC
+of the similarity feature alone, so the result is about the user vector and nothing else. Both
+arms use the same code path and the same N; only the weights differ.
+
+### CURRENT, clean history, 2026-09-12
+
+| N | uniform | read-time weighted | weighted - uniform |
+|---|---|---|---|
+| 1 | 0.5221 | 0.5221 | +0.0000 |
+| 5 | 0.5368 | 0.5362 | -0.0006 |
+| 10 | 0.5416 | 0.5434 | +0.0018 |
+| 20 | 0.5483 | 0.5495 | +0.0011 |
+| 50 | 0.5528 | 0.5554 | +0.0026 |
+| 100 | **0.5545** | **0.5570** | +0.0025 |
+
+**Claim 1 is now REJECTED, having previously been confirmed.** Performance is **monotonically
+increasing** in N across the whole range and peaks at N=100, the largest value tested. There is
+no degradation anywhere. Both A1 systems reported that averaging more history makes the user
+vector worse, and `info.md` built its read-time hypothesis on that premise; on clean history the
+premise is false.
+
+The leak explains the old shape. With future clicks in the profile, a short window concentrated
+the leaked signal, so the curve peaked early at N=10 and fell away as genuine history diluted it.
+Removing the leak removes the peak.
+
+**Claim 2 is no longer rejected, but it is not confirmed either.** Read-time weighting is
+positive at every N above 5, best at +0.0026. That is the direction `info.md` predicted, but this
+sweep reports no confidence intervals and an effect of 0.0026 is too small to call real without
+one. Treat it as unresolved rather than supported.
+
+Note this does not contradict the ranker-level result above, where `minus engage_sim` is not
+significant. A small gain in an isolated feature need not survive alongside `pop_causal`, which
+dominates the ensemble.
+
+**Consequence for a config in another lane.** `configs/datasets.yaml` sets `history_len: 30` and
+cites this sweep as verification. That justification is withdrawn and N=100 now looks better.
+`configs/` is Yash's lane, so this is flagged, not changed.
+
+### SUPERSEDED: the same sweep on leaked history
 
 | N | uniform | read-time weighted | weighted - uniform |
 |---|---|---|---|
@@ -452,12 +526,8 @@ nothing else. Both arms use the same code path and the same N; only the weights 
 | 50 | 0.6093 | 0.6092 | -0.0000 |
 | 100 | 0.5906 | 0.5919 | +0.0013 |
 
-**Claim 1 confirmed.** Performance is non-monotonic in N and degrades badly past 10: 0.6473 at
-N=10 falls to 0.5906 at N=100. This replicates what both A1 systems saw.
-
-**Claim 2 rejected.** Read-time weighting is *worse* than uniform at every N from 5 to 50, and
-only marginally better at N=100 (+0.0013). It does not rescue long histories. If anything it
-slightly hurts at the history lengths that actually work.
+Every AUC here is inflated by roughly 0.10 relative to the clean run, which is the measured size
+of the leak on this feature (+0.0967).
 
 ### This corrects an earlier claim in this file
 

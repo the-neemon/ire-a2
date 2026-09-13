@@ -158,30 +158,70 @@ less-clicked articles. Stated as a tradeoff rather than reporting the accuracy g
 > built from future-contaminated history on train and val. The grid needs re-running once that is
 > fixed. The test-split headline is unaffected and is the number to quote in the meantime.
 
-Each arm removes exactly one feature and retrains. Full model = 0.7575 on 64,365 val impressions.
+**RE-RUN 2026-09-12 on clean features.** The table below replaces the contaminated one; the
+superseded figures are kept in the comparison at the end of this section because they are the
+evidence for what the leak was worth.
 
-| arm | val AUC | full - arm | 95% CI | significant |
-|---|---|---|---|---|
-| stage1_only | 0.5498 | **+0.2077** | [+0.2048, +0.2107] | yes |
-| pop_only | 0.6954 | +0.0620 | [+0.0602, +0.0639] | yes |
-| minus `pop_causal` | 0.7228 | +0.0346 | [+0.0330, +0.0363] | yes |
-| minus `engage_sim` | 0.7489 | +0.0085 | [+0.0075, +0.0096] | yes |
-| minus `emb` | 0.7532 | +0.0043 | [+0.0035, +0.0050] | yes |
-| minus `cat_match` | 0.7537 | +0.0038 | [+0.0028, +0.0048] | yes |
-| minus `hist_len` | 0.7555 | +0.0019 | [+0.0014, +0.0025] | yes |
-| minus `bm25` | 0.7561 | +0.0014 | [+0.0008, +0.0020] | yes |
-| minus `user_scroll` | 0.7565 | +0.0009 | [+0.0005, +0.0014] | yes |
-| minus `user_read` | 0.7567 | +0.0007 | [+0.0002, +0.0013] | yes |
-| minus `age_hours` | 0.7572 | +0.0003 | [-0.0002, +0.0007] | **no** |
-| minus `recency` | 0.7574 | +0.0001 | [-0.0003, +0.0006] | **no** |
+Each arm removes exactly one feature and retrains. Full model = **0.7489** on 64,365 val
+impressions, and **0.7461** on 244,647 test impressions.
 
-**Causally valid popularity is the single biggest win.** Removing it costs 0.0346; alone it
-reaches 0.6954. This was the highest-ranked item on the A2 plan and it delivered.
+| arm | val AUC | full - arm | 95% CI | sig | test delta | sig |
+|---|---|---|---|---|---|---|
+| stage1_only | 0.5498 | **+0.1991** | [+0.1963, +0.2020] | yes | **+0.2031** | yes |
+| pop_only | 0.6954 | +0.0535 | [+0.0517, +0.0553] | yes | +0.0605 | yes |
+| minus `pop_causal` | 0.7126 | +0.0363 | [+0.0346, +0.0379] | yes | +0.0403 | yes |
+| minus `cat_match` | 0.7451 | +0.0038 | [+0.0027, +0.0048] | yes | +0.0047 | yes |
+| minus `bm25` | 0.7480 | +0.0009 | [+0.0004, +0.0015] | yes | +0.0008 | yes |
+| minus `engage_sim` | 0.7487 | +0.0002 | [-0.0004, +0.0009] | **no** | +0.0012 | yes |
+| minus `hist_len` | 0.7489 | +0.0000 | [-0.0004, +0.0004] | **no** | +0.0006 | yes |
+| minus `emb` | 0.7490 | -0.0001 | [-0.0006, +0.0004] | **no** | +0.0010 | yes |
+| minus `age_hours` | 0.7491 | -0.0002 | [-0.0008, +0.0003] | **no** | +0.0012 | yes |
+| minus `user_scroll` | 0.7493 | -0.0004 | [-0.0009, +0.0001] | **no** | +0.0009 | yes |
+| minus `recency` | 0.7493 | -0.0004 | [-0.0010, +0.0001] | **no** | -0.0001 | no |
+| minus `user_read` | 0.7496 | **-0.0006** | [-0.0012, -0.0002] | **yes, negative** | +0.0002 | no |
 
-**`engage_sim` contributes +0.0085**, CI [+0.0075, +0.0096]. Neither A1 system used the
-read-time column at all. **But do not describe this as "engagement weighting beats uniform
-pooling".** A dedicated sweep (section 4) shows read-time weighting is *worse* than uniform at
-every history length from 5 to 50. `engage_sim` pools over the user's entire history while
+**Causally valid popularity is the single biggest win**, and more so than before. Removing it
+costs 0.0363 val and 0.0403 test; alone it reaches 0.6954. This was the highest-ranked item on
+the A2 plan and it delivered.
+
+**`engage_sim`'s +0.0085 was entirely the leak.** On clean history the val interval straddles
+zero at +0.0002 [-0.0004, +0.0009]. It was the largest per-feature effect after popularity and
+category, and it does not survive. The read-time-weighted user vector does not beat the uniform
+one inside the ranker, which was the question that feature existed to answer. Do not describe
+this as "engagement weighting beats uniform pooling" in any form.
+
+**`minus_user_read` is significantly negative on val**: removing the feature improves the model
+by 0.0006. It is not significant on test, so the case for dropping it rests on a val-only effect
+and is left pending rather than acted on mid-report.
+
+**Val and test disagree systematically on the small arms**, almost all significant on test and
+not on val. Test has 3.8x the impressions and therefore much tighter intervals, so where the
+sign is stable and only significance changes, the reading is underpowered on val, not absent.
+
+### What the leak was worth, by comparison
+
+| | contaminated | clean |
+|---|---|---|
+| full, val | 0.7575 | 0.7489 |
+| full, test | 0.7429 | **0.7461** |
+| `minus engage_sim`, val | +0.0085, sig | +0.0002, **not sig** |
+| `stage1_only`, val | +0.2077 | +0.1991 |
+
+**Test performance went up.** Test features were always correct, since the test split is drawn
+from the same block its history comes from, so the only thing that changed is the model, which
+now trains on clean features. Removing the leak improved genuine generalisation by +0.0032,
+which is the opposite of the usual "the number was inflated" story.
+
+**Consistency check.** `stage1_only` (0.5498) and `pop_only` (0.6954) are bit-identical to the
+contaminated run, because neither arm reads an engagement feature. The fix changed exactly the
+arms it should have and nothing else.
+
+The superseded discussion follows, kept because the sweep it cites is itself withdrawn:
+
+**`engage_sim` contributed +0.0085** on contaminated features. Neither A1 system used the
+read-time column at all. A dedicated sweep (section 4) was read as showing read-time weighting is
+*worse* than uniform at every history length from 5 to 50; that sweep ran on contaminated history
+and its conclusion is withdrawn. `engage_sim` pools over the user's entire history while
 `emb` uses `history_len: 30`, so the two differ in two variables and the gain is attributable to
 the pooling length, not the weights.
 
@@ -255,24 +295,33 @@ random), ANN indexes (10 to 20x faster but exact search was never the bottleneck
 
 ## 5. Q9, anti-gaming: with and without serving-unavailable features
 
+**RE-RUN 2026-09-12 on clean features.** The caveat that stood here is discharged.
+
 | arm | val AUC |
 |---|---|
-| causal only, **ships** | 0.7575 |
-| + article lifetime aggregates | 0.7796 |
-| **difference** | **+0.0222** [+0.0207, +0.0235], significant |
+| causal only, **ships** | **0.7489** |
+| + article lifetime aggregates | **0.7753** |
+| **difference** | **+0.0264** [+0.0249, +0.0277], significant |
 
-> **Caveat, see 9.1.** Both arms are val figures built on contaminated engagement features, so
-> +0.0222 needs re-measuring. The *direction* of the argument is robust, because the
-> contamination affects both arms identically, but the magnitude is not yet defensible.
+Previously +0.0222 on contaminated features. The gap **widened**, which looks backwards until you
+see why: fixing the leak lowered the honest arm from 0.7575 to 0.7489, because part of its
+measured quality had been future clicks in `engage_sim`, `user_read` and `user_scroll`. The leaky
+arm fell less, since it still holds the lifetime aggregates. So the system became more honest and
+the measured cost of honesty rose. The conclusion is unchanged and slightly stronger.
 
 The leaky columns are `total_inviews`, `total_pageviews`, `total_read_time`, which aggregate an
 article's whole lifetime including time after the impression.
 
-**The story is how small +0.0222 is.** A1 measured the same class of feature at +0.042 (EB-NeRD
+**The story is how small +0.0264 is.** A1 measured the same class of feature at +0.042 (EB-NeRD
 small) and +0.075 (demo). A1 was comparing leaky popularity against a system with **no**
 popularity signal; here it competes with `pop_causal`. So most of what lifetime popularity
-provided is legitimately obtainable. Cheating is worth +0.0222; the honest behavioural axis is
-worth +0.2077.
+provided is legitimately obtainable. Cheating is worth +0.0264; the honest behavioural axis is
+worth +0.1991, about 7.5 times more.
+
+**MIND cannot run this comparison at all.** `total_inviews`, `total_pageviews` and
+`total_read_time` are 100% null across all 65,238 MIND articles, so this is an EB-NeRD result.
+`q9.py` now refuses on a dataset with no leaky feature file rather than silently comparing a
+model against itself.
 
 **Put end to end, the honest system beats the leaky one outright, and not narrowly.** Measured
 through the full Q5 harness, where `rerank` uses only pre-impression features and
@@ -717,3 +766,46 @@ the real file exits 0. **It immediately caught a real bug**, a path in the valid
 read `behaviors.parquet` where the bundle nests it under `test/`. A validator that reads a
 different file from the writer validates nothing, which is the same family as the vacuous tests in
 section 6.
+
+## 9.5 The four unswept constants, measured (2026-09-12 to 09-13)
+
+`FACTS.md` section 16 carries the tables. Three of the four are **isolated-feature**
+measurements, the same protocol as the history sweep: per-impression AUC of the one feature
+alone. An isolated number cannot be absorbed by a correlated neighbour the way a LightGBM
+ablation arm can, which is the point, but it also means a winner there is a candidate for a
+ranker-level check rather than a shipped result.
+
+**The causal popularity window is the largest unshipped finding in the project.** Currently
+unbounded. A 6 hour window scores 0.7349 against unbounded's 0.6902 in isolation, **+0.0447**,
+larger than every per-feature effect in the 13-arm grid except `pop_causal` itself. The curve is
+single-peaked: 1 h is too noisy, and past 72 h it converges to unbounded because in a two-day
+EB-NeRD window almost every click already falls inside 168 h.
+
+Read plainly, this says the shipped feature measures the wrong thing. "How popular has this
+article ever been" is a worse signal for news than "how popular is it right now". Since
+`pop_causal` is the feature the whole system leans on, a ranker-level ablation with a paired CI
+is required before changing it, and that is in progress.
+
+**The recency half-life does not matter and the sweep says why.** Flat to four decimals from 1 h
+to 168 h, a 168x range, because the feature barely ranks at all in isolation: 0.5088 against a
+0.5 floor. This agrees with the grid, where `minus_recency` is indistinguishable from zero on both
+splits. `build.py` described 24.0 as "a starting value, swept as its own ablation"; the sweep has
+now happened and the honest conclusion is that the choice is irrelevant, not that 24 is optimal.
+
+**`info.md` item 4 is supported where item 1 was not.** Filtering history to entries with scroll
+completion at or above 90% gains +0.0064 over no filter while discarding 59% of the history, and
+the effect is monotonic above a 25% threshold. `info.md` explicitly claimed item 4 "complements
+rather than duplicates" read-time weighting, and that distinction now has evidence on both sides:
+the weighting was rejected, the quality filter was not. Two qualifications: the dip at a 10%
+threshold (0.5521, below no-filter) is unexplained, and keeping the best 41% of 100 items may be
+partly the profile-size effect from 9.1's re-run rather than click quality, which needs a
+threshold-by-N grid to separate.
+
+**lambdarank beats a binary objective by +0.016**, [+0.0150, +0.0173] val and [+0.0159, +0.0171]
+test, both significant, intervals overlapping. This one is a ranker-level result, not isolated.
+`train.py` justified lambdarank on the argument that the objective should match the task; that is
+now measured rather than asserted. The binary arm's feature importances reorder sharply, with
+`recency` and `age_hours` taking the top gain slots ahead of `pop_causal`: a pointwise objective
+leans on absolute freshness, a pairwise one on the within-impression contrast that actually
+decides the ranking.
+

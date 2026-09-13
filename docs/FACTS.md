@@ -674,3 +674,355 @@ Checked directly, since section 10's leak made the question live: in
 history timestamp at or after their own timestamp. `split.py` takes history from the correct
 block. The section 10 leak is confined to `_engagement_weights` in `src/features/build.py` and
 does not touch the NRMS feed.
+
+## 15. The 2026-09-12 re-runs on clean features, and the first MIND system (A2)
+
+Everything below was regenerated after the section 10 engagement leak fix. Machine: laptop-naman.
+Every val-selected figure that section 10 flagged is now re-measured; nothing contaminated
+remains in a reported position.
+
+### 15.1 The 13-arm grid, EB-NeRD small
+
+Full model **0.7489** val (64,365 impressions), **0.7461** test (244,647).
+
+| | contaminated | clean | note |
+|---|---|---|---|
+| full, val | 0.7575 | **0.7489** | |
+| full, test | 0.7429 | **0.7461** | went **up**, see below |
+| `stage1_only` gap, val | +0.2077 | **+0.1991** [+0.1963, +0.2020] | headline survives |
+| `stage1_only` gap, test | +0.2049 | **+0.2031** [+0.2016, +0.2047] | |
+| `minus engage_sim`, val | +0.0085 sig | **+0.0002** [-0.0004, +0.0009] **not sig** | effect was the leak |
+| `minus user_read`, val | +0.0007 sig | **-0.0006** [-0.0012, -0.0002] **sig negative** | removing it helps |
+| `minus pop_causal`, val | +0.0346 | **+0.0363** [+0.0346, +0.0379] | still dominant |
+
+**`engage_sim` does not survive.** Its +0.0085 was the largest per-feature effect after
+popularity and category, and on clean history the interval straddles zero. The read-time-weighted
+user vector does not beat the uniform one inside the ranker.
+
+**Test performance improved by +0.0032.** Test features were already correct, since the test split
+is drawn from the same block its history comes from, so only the model changed. Removing the leak
+improved genuine generalisation rather than deflating an inflated number.
+
+**Consistency check.** `stage1_only` (0.5498) and `pop_only` (0.6954) are bit-identical to the
+contaminated run, since neither reads an engagement feature. The fix moved exactly the arms it
+should have.
+
+### 15.2 Q9 re-measured
+
+| arm | val AUC |
+|---|---|
+| causal only, ships | **0.7489** |
+| plus lifetime aggregates | **0.7753** |
+| difference | **+0.0264** [+0.0249, +0.0277], significant |
+
+Previously +0.0222. The gap widened because the honest arm fell while the leaky arm held, so the
+system became more honest and the measured price of honesty rose. Against the +0.1991 two-stage
+gain, the leak is worth about one seventh as much.
+
+### 15.3 The history sweep, re-run: the A1 claim is reversed
+
+`results/sweep_history_ebnerd_small_val.json`, per-impression AUC of the similarity feature alone.
+
+| N | uniform | read-time weighted | delta |
+|---|---|---|---|
+| 1 | 0.5221 | 0.5221 | +0.0000 |
+| 5 | 0.5368 | 0.5362 | -0.0006 |
+| 10 | 0.5416 | 0.5434 | +0.0018 |
+| 20 | 0.5483 | 0.5495 | +0.0011 |
+| 50 | 0.5528 | 0.5554 | +0.0026 |
+| 100 | **0.5545** | **0.5570** | +0.0025 |
+
+**Both curves rise monotonically and peak at N=100**, the largest value tested. On contaminated
+history the curve peaked at N=10.
+
+Two A1 claims fall. "Averaging more history makes the user vector worse", reported by both A1
+systems and used as the premise for `info.md`'s read-time hypothesis, is **false on clean
+history**: more history is monotonically better across the whole range. And read-time weighting is
+not worse than uniform; it is positive at every N above 5, though small.
+
+Caveat: this sweep reports no confidence intervals, and +0.0025 is too small to call real without
+one. The monotonic-N finding is large and unambiguous; the weighting comparison is not yet
+defensible. Note it does not contradict 15.1, where `engage_sim` as a ranker feature is not
+significant: a small gain in the isolated feature need not survive alongside `pop_causal`.
+
+**Consequence for a config we do not own.** `configs/datasets.yaml` sets `history_len: 30` with a
+comment citing this sweep as verification. That justification is withdrawn, and N=100 now looks
+better. `configs/` is Yash's lane, so this is flagged rather than changed.
+
+### 15.4 First MIND A2 system
+
+Five of ten features, per 15.5. Same trainer, same protocol, same paired bootstrap.
+
+| | EB-NeRD val | MIND val |
+|---|---|---|
+| full re-ranker | 0.7489 | **0.6512** |
+| stage one alone | 0.5498 | 0.6372 |
+| two-stage gain | +0.1991 | **+0.0140** [+0.0120, +0.0159] |
+| `pop_only` alone | 0.6954 | 0.5475 |
+| dominant feature | `pop_causal`, +0.0363 | `emb`, +0.0313 |
+
+MIND test per-impression AUC **0.6539**.
+
+The gain is **14x smaller on MIND**, which is the expected consequence of the availability table
+rather than a failure. Feature importance inverts: `emb` dominates on MIND where `pop_causal`
+dominates on EB-NeRD, and causal popularity alone is barely above chance on MIND. Stage one is
+also stronger on MIND in absolute terms, 0.6372 against 0.5498, so there is less headroom to
+begin with.
+
+### 15.5 Feature availability is now enforced, not assumed
+
+`build.py` gains `DATASET_FEATURES` and `features_for(dataset)`. Measured on mind_small:
+
+| source column | MIND state | features lost |
+|---|---|---|
+| `published_time` | 100% null, all 65,238 articles | `age_hours`, `recency` |
+| `total_inviews` / `pageviews` / `read_time` | 100% null | the entire Q9 leaky arm |
+| `history.parquet` | absent | `user_read`, `user_scroll`, `engage_sim` |
+
+Five of ten features cannot exist on MIND. They are now dropped explicitly rather than emitted as
+null columns, and `build.py` **fails loudly** if a feature it claims to emit is all-null or
+constant, because LightGBM cannot tell a column of zeros from a real feature. `train.py`,
+`ablate.py` and `q9.py` all read `features_for(dataset)`, and `q9.py` refuses outright on a
+dataset with no leaky feature file.
+
+**A MIND trap worth keeping.** `history_timestamps` on MIND is a **null list** of dtype
+`List(Datetime)`, not an empty list and not `Null`. So `.list.len()` returns null rather than 0,
+and a filter for `list.len() == 0` matches nothing and looks like healthy data. That is the exact
+shape that let an earlier MIND leakage test pass over 95,071 rows while checking none of them.
+The engagement assertion added in section 10 guards against it with an explicit null check.
+
+The leakage suite now covers MIND: 8 passed, 4 skipped, where the skips are `ebnerd_demo`
+(features not built) and MIND's engagement tests (no history to check). Both MIND assertions carry
+non-vacuity guards (`checked > 0`, `compared >= 100`) and the injection test asserts the poisoned
+count exceeds the honest one.
+
+### 15.6 MIND test split
+
+Full **0.6539** over 73,152 test impressions, against 0.6512 val. The two-stage gain is
+**+0.0166** [+0.0149, +0.0184] test against +0.0140 [+0.0120, +0.0159] val, so the intervals
+overlap and the EB-NeRD/MIND contrast is stable across the split boundary.
+
+| MIND arm | test AUC | full - arm | 95% CI | sig |
+|---|---|---|---|---|
+| `pop_only` | 0.5710 | +0.0830 | [+0.0809, +0.0850] | yes |
+| `minus_emb` | 0.6263 | +0.0276 | [+0.0263, +0.0290] | yes |
+| `stage1_only` | 0.6373 | +0.0166 | [+0.0149, +0.0184] | yes |
+| `minus_pop_causal` | 0.6473 | +0.0066 | [+0.0050, +0.0085] | yes |
+| `minus_cat_match` | 0.6484 | +0.0056 | [+0.0049, +0.0063] | yes |
+| `minus_bm25` | 0.6493 | +0.0046 | [+0.0038, +0.0053] | yes |
+| `minus_hist_len` | 0.6526 | +0.0013 | [+0.0008, +0.0018] | yes |
+
+`emb` dominates on both MIND splits and `pop_causal` on both EB-NeRD splits, so the inversion of
+feature importance between datasets is not a val artefact.
+
+## 16. Q3 complete: NRMS reproduced, and beaten (A2)
+
+Machine: cluster, u22 node, 16 CPU cores, no GPU. Seed 16.
+
+### 16.1 The numbers
+
+| system | val | test |
+|---|---|---|
+| NRMS, benchmark script on **their** split protocol | 0.6484 | not scored |
+| NRMS, our temporal split (`history_size` 20) | **0.5969** | **0.5938** |
+| NRMS, our split, `history_size` 50 | **0.6042** | pending |
+| our two-stage re-ranker | **0.7489** | **0.7461** |
+
+**The two-stage system beats NRMS by +0.1520 val and +0.1523 test** on identical impressions.
+
+The reason is not "trees beat attention". NRMS reads article text and click sequence only; it has
+no causal popularity, which is our single most valuable feature (removing it costs 0.0363 val).
+Our own text-and-embedding-only arm, `stage1_only`, scores 0.5498, close to NRMS's 0.5969. The
+comparison is between a model with the click log and one without it.
+
+### 16.2 The one principled change: history_size 20 to 50
+
+| | val per-impression AUC |
+|---|---|
+| `history_size` 20, benchmark default | 0.5969 |
+| `history_size` 50 | 0.6042 |
+| **difference** | **+0.0072 [+0.0058, +0.0088]**, significant |
+
+Paired bootstrap, 1,000 resamples, 64,365 shared impressions, aligned on `impression_id` rather
+than row position. Seed 16.
+
+Justified by our own re-run sweep (15.3), which finds the user vector improves monotonically with
+history length and peaks at N=100. The benchmark default of 20 sits well below that. 50 rather
+than 100 because NRMS self-attends over the history, so cost grows faster than linearly, and the
+sweep shows most of the gain is reached by 50. The **previous** sweep would have argued for the
+opposite change; it ran on leaked history and is withdrawn.
+
+Protocol: the variant scored val only, so test was not used to choose. A separate run scores the
+winner on test once.
+
+### 16.3 A driver defect worth recording
+
+`per_impression_auc` originally looped per impression in Python. On 244,647 test impressions it
+ran for over four hours without finishing and the job was killed. The parquet is written before
+the metric is computed, so the scores survived and the AUC was recovered separately.
+
+Replaced with a vectorised polars form using `rank("average").over("impression_id")`, which
+returns in seconds and handles ties identically. The lesson is the ordinary one: a per-group
+Python loop over a quarter of a million groups is not a metric implementation, it is a hang.
+
+## 17. N5: the two unswept constants (A2)
+
+`results/sweep_constants_ebnerd_small_val.json`. Isolated feature AUC, EB-NeRD small val, the same
+protocol as the history sweep: a feature that cannot reorder candidates inside an impression
+scores 0.5 here regardless of how it looks pooled.
+
+### 17.1 The recency half-life does not matter at all
+
+| half-life | 1 h | 6 h | 24 h | 48 h | 168 h |
+|---|---|---|---|---|---|
+| AUC | 0.5088 | 0.5087 | **0.5087** | 0.5088 | 0.5088 |
+
+Flat to four decimals across a 168x range. `RECENCY_HALFLIFE_H = 24.0` is documented in build.py
+as "a starting value, swept as its own ablation"; the sweep is now done and the constant is
+irrelevant. This also explains the grid: `minus recency` is one of the few arms that never reaches
+significance on either split, because the feature carries almost no within-impression signal at
+any setting. **No change recommended**, and the open question is closed rather than left open.
+
+### 17.2 The causal popularity window is badly suboptimal
+
+| window | 1 h | **6 h** | 24 h | 72 h | 168 h | unbounded |
+|---|---|---|---|---|---|---|
+| AUC | 0.7082 | **0.7349** | 0.7254 | 0.7045 | 0.6902 | **0.6902** |
+
+**A 6 hour window scores 0.7349 against the shipped unbounded 0.6902, +0.0447 on the isolated
+feature.** The curve is single-peaked: too narrow loses signal, too wide dilutes recent
+popularity with stale counts. Unbounded and 168 h are identical, which is the tell that almost
+all the useful signal sits inside the first week and the tail adds only noise.
+
+This matters more than the size of the number suggests, because `pop_causal` is the dominant
+feature of the whole system.
+
+No leak is possible from this change: a narrower window only drops older clicks and never admits
+newer ones, so the strict "< t" upper bound the leakage test asserts is untouched.
+`--pop-window-h` is wired into `build.py` with a default of None, which reproduces the shipped
+unbounded behaviour exactly, and `--suffix` lets a variant feature store be built without
+overwriting the shipped one.
+
+### 17.3 The 6 h window confirmed at ranker level
+
+The isolated-feature result above is a candidate, not a verdict, so it was re-checked through the
+full re-ranker. Same features, same trainer, same seed; only the popularity window differs.
+
+| split | unbounded (ships) | 6 h window | difference |
+|---|---|---|---|
+| val | 0.7489 | **0.7523** | **+0.0034 [+0.0026, +0.0043]**, significant |
+| test | 0.7461 | **0.7523** | **+0.0062 [+0.0058, +0.0067]**, significant |
+
+Significant on both splits, same sign, and the test effect is the larger of the two. `pop_causal`
+gain rises from 455,098 to 649,523, so the model leans on it harder once the counts stop being
+diluted by stale clicks.
+
+The two splits landing on 0.7523 to four decimals is a coincidence, not a wiring bug: the
+underlying files differ as expected (703,229 rows over 64,365 impressions against 2,928,942 over
+244,647, with different score means).
+
+**Recommendation: ship the 6 h window.** It is the largest single improvement available in this
+lane, it is significant on both splits, it cannot leak, and it costs nothing at serving time.
+Not applied here because changing it moves every number in sections 15 and 16, which is a
+decision to take deliberately rather than as a side effect of a sweep. The variant feature store
+is built and kept as `features_pop6h_*.parquet`.
+
+**Caveat on the size of the isolated number.** The isolated feature gained +0.0447 while the
+ranker gained +0.0034 val and +0.0062 test. That gap is the ordinary ensemble story: other
+features partially cover for a weaker `pop_causal`, so the isolated measurement is an upper
+bound on what the system can gain, not an estimate of it. Quote the ranker numbers.
+
+## 16. N5: the four unswept constants (A2)
+
+All four measured on EB-NeRD small val, clean features. Machine: laptop-naman.
+
+**Scope caveat, stated once and applying to 16.1 to 16.3.** These are **isolated-feature**
+measurements: per-impression AUC of the one feature, the same protocol `sweep_history.py` uses.
+That is deliberate, since an isolated number cannot be absorbed by a correlated neighbour the way
+a LightGBM ablation arm can. It also means a winner here is a **candidate** for a ranker-level
+check, not a shipped result. None of 16.1 to 16.3 has been confirmed through the ranker.
+
+### 16.1 Causal popularity window: the largest unshipped win found so far
+
+Currently unbounded, counting every click before `t`. Narrowing the lower bound cannot leak,
+since the strict `< t` upper bound is unchanged and a narrower window only drops older clicks.
+
+| window | isolated AUC |
+|---|---|
+| 1 h | 0.7082 |
+| **6 h** | **0.7349** |
+| 24 h | 0.7254 |
+| 72 h | 0.7045 |
+| 168 h | 0.6902 |
+| unbounded (current) | 0.6902 |
+
+**A 6 hour window is worth +0.0447 over unbounded**, which is larger than every per-feature effect
+in the 13-arm grid except `pop_causal` itself. The curve is single-peaked: 1 h is too noisy,
+beyond 72 h it converges to unbounded, because in a two-day EB-NeRD window almost every click is
+already inside 168 h.
+
+This says the feature is currently measuring the wrong thing. "How popular has this article ever
+been" is a worse signal than "how popular is it right now", which is what a news recommender
+should want. **Not shipped**: it needs a ranker-level ablation with a paired CI first, and that
+changes a feature the whole system leans on.
+
+### 16.2 Recency half-life: flat, and the feature is near useless alone
+
+| half-life | 1 h | 3 h | 6 h | 12 h | 24 h | 48 h | 96 h | 168 h |
+|---|---|---|---|---|---|---|---|---|
+| isolated AUC | 0.5088 | 0.5087 | 0.5087 | 0.5088 | 0.5087 | 0.5088 | 0.5088 | 0.5088 |
+
+**Completely flat to four decimals across a 168x range.** The constant does not matter because
+the feature barely ranks at all: 0.5088 is a whisker above chance. This agrees with the grid,
+where `minus_recency` is indistinguishable from zero on both splits.
+
+`build.py` documents 24.0 as "a starting value, swept as its own ablation". The sweep has now
+happened and the answer is that the choice is irrelevant. Left at 24.0; there is no reason to
+change it and no reason to tune it.
+
+### 16.3 Scroll completion as a click-quality filter: info.md item 4 is SUPPORTED
+
+`info.md` item 4 proposes dropping history entries the user barely engaged with, and notes it
+"complements rather than duplicates" read-time weighting, so the weighting rejection does not
+settle it. Held at N=100, the clean-history optimum.
+
+| min scroll % | isolated AUC | history kept |
+|---|---|---|
+| 0, no filter (current) | 0.5545 | 100.0% |
+| 10 | 0.5521 | 88.5% |
+| 25 | 0.5559 | 78.5% |
+| 50 | 0.5590 | 58.4% |
+| 75 | 0.5606 | 46.7% |
+| **90** | **0.5609** | **41.1%** |
+
+**Monotonic above 25%, worth +0.0064 at a 90% threshold while discarding 59% of the history.**
+Item 4 is supported where item 1 (read-time weighting) was not, which is the distinction
+`info.md` itself drew and is worth reporting as such.
+
+Two honest qualifications. The dip at 10% (0.5521, below no-filter) is unexplained and means the
+curve is not simply monotonic. And keeping the best 41% of 100 items is roughly 41 items, so part
+of this may be the profile-size effect from 15.3 rather than quality per se; separating them needs
+a threshold-by-N grid that has not been run.
+
+### 16.4 lambdarank versus binary objective: the choice was right
+
+Same ten features, same rows, same order, same seed. Only the objective differs, so the binary
+arm also drops `ndcg` as its early-stopping metric (group structure is irrelevant to its loss)
+and uses `auc` instead.
+
+| | val | test |
+|---|---|---|
+| lambdarank (ships) | **0.7489** | **0.7461** |
+| binary | 0.7328 | 0.7295 |
+| **lambdarank - binary** | **+0.0161** [+0.0150, +0.0173] | **+0.0165** [+0.0159, +0.0171] |
+
+Significant on both splits, and the two intervals overlap, so it generalises. `train.py`'s
+docstring justified lambdarank on the argument that the objective should match the task, since
+the metric is a ranking inside an impression rather than a global click probability. That argument
+is now measured rather than asserted, and it is worth about +0.016.
+
+Worth noting for the viva: the binary arm's feature importances reorder sharply, with `recency`
+and `age_hours` taking the top two gain slots ahead of `pop_causal`. A pointwise objective leans
+on absolute-freshness features, while the pairwise one leans on the within-impression contrast
+that actually decides the ranking.
+
