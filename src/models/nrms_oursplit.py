@@ -51,30 +51,27 @@ def per_impression_auc(df: pl.DataFrame) -> tuple[float, int, int]:
     """Mann-Whitney AUC inside each impression, averaged over impressions with both classes.
 
     Pooled AUC systematically overstates any feature that varies across impressions rather
-    than within them, so the whole project reports this form. Returns (auc, n_scored,
-    n_skipped).
+    than within them, so the whole project reports this form.
+
+    Vectorised through polars rather than looped per impression. The loop version took over
+    four hours on 244,647 test impressions and had to be killed, while this returns in
+    seconds; `rank("average")` also handles ties the same way the manual version did.
     """
-    aucs = []
-    skipped = 0
-    for (_,), g in df.group_by([DEFAULT_IMPRESSION_ID_COL], maintain_order=True):
-        y = g["label"].to_numpy()
-        s = g["score"].to_numpy()
-        n_pos = int(y.sum())
-        n_neg = int(len(y) - n_pos)
-        if n_pos == 0 or n_neg == 0:
-            skipped += 1
-            continue
-        # Rank-based Mann-Whitney U, average ranks for ties.
-        order = np.argsort(s, kind="stable")
-        ranks = np.empty(len(s), dtype=np.float64)
-        ranks[order] = np.arange(1, len(s) + 1)
-        _, inv, counts = np.unique(s, return_inverse=True, return_counts=True)
-        tie_mean = np.zeros(len(counts))
-        np.add.at(tie_mean, inv, ranks)
-        tie_mean /= counts
-        ranks = tie_mean[inv]
-        aucs.append((ranks[y == 1].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))
-    return float(np.mean(aucs)), len(aucs), skipped
+    total = df["impression_id"].n_unique()
+    d = df.with_columns(
+        pl.col("score").rank("average").over("impression_id").alias("_r")
+    )
+    g = d.group_by("impression_id").agg(
+        pl.col("label").sum().alias("_np"),
+        pl.len().alias("_n"),
+        (pl.col("_r") * pl.col("label")).sum().alias("_rs"),
+    )
+    g = g.filter((pl.col("_np") > 0) & (pl.col("_np") < pl.col("_n")))
+    if not g.height:
+        raise SystemExit("FATAL: no impression has both a positive and a negative")
+    auc = ((g["_rs"] - g["_np"] * (g["_np"] + 1) / 2)
+           / (g["_np"] * (g["_n"] - g["_np"]))).mean()
+    return float(auc), g.height, total - g.height
 
 
 def load_split(path: Path, history_size: int) -> pl.DataFrame:
