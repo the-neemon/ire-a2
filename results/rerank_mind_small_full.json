@@ -1,0 +1,20 @@
+{
+  "tag": "full",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "cat_match",
+    "hist_len"
+  ],
+  "best_iteration": 131,
+  "val_auc": 0.6511888044657723,
+  "test_auc": 0.6539253468307822,
+  "importance": {
+    "emb": 143795.26341819763,
+    "pop_causal": 134571.95083379745,
+    "hist_len": 39083.21907520294,
+    "bm25": 34795.64501237869,
+    "cat_match": 27552.8988571167
+  }
+}

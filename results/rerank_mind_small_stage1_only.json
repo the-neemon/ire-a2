@@ -1,0 +1,14 @@
+{
+  "tag": "stage1_only",
+  "features": [
+    "bm25",
+    "emb"
+  ],
+  "best_iteration": 16,
+  "val_auc": 0.637212338731648,
+  "test_auc": 0.6373028971756229,
+  "importance": {
+    "emb": 64254.5266418457,
+    "bm25": 18768.311999320984
+  }
+}

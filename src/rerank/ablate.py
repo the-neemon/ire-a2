@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from src.features.build import FEATURES
+from src.features.build import features_for
 from src.rerank.train import run, per_impression_auc
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -59,10 +59,13 @@ def main() -> None:
     args = ap.parse_args()
     name, split = args.dataset, args.split
 
-    arms = {"full": FEATURES}
+    # The grid is over whatever this dataset actually supports, not the EB-NeRD ten. On MIND
+    # five features have no source columns, so arms removing them would be duplicates of full.
+    feature_set = features_for(name)
+    arms = {"full": feature_set}
     # One arm per feature removed. Single-variable by construction.
-    for f in FEATURES:
-        arms[f"minus_{f}"] = [x for x in FEATURES if x != f]
+    for f in feature_set:
+        arms[f"minus_{f}"] = [x for x in feature_set if x != f]
     # Two reference points: what stage one alone could do, and the strongest single feature.
     arms["stage1_only"] = ["bm25", "emb"]
     arms["pop_only"] = ["pop_causal"]

@@ -22,7 +22,7 @@ import lightgbm as lgb
 import numpy as np
 import polars as pl
 
-from src.features.build import FEATURES
+from src.features.build import features_for
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PROC = ROOT / "data/processed"
@@ -114,7 +114,7 @@ def main() -> None:
     ap.add_argument("--tag", default="full")
     args = ap.parse_args()
     for name in args.datasets:
-        run(name, args.features or FEATURES, args.tag)
+        run(name, args.features or features_for(name), args.tag)
 
 
 if __name__ == "__main__":

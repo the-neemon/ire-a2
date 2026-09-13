@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from src.features.build import FEATURES
+from src.features.build import features_for
 from src.features.leaky import LEAKY_FEATURES
 from src.rerank.train import run
 from src.rerank.ablate import impression_auc_vector, paired_bootstrap
@@ -36,9 +36,20 @@ def main() -> None:
     # Both arms read the leaky file so the rows and their order are identical; the only
     # difference is which columns the model is allowed to see. Reading different files would
     # risk a different row order and silently break the pairing.
+    # MIND has no lifetime aggregates at all: total_inviews, total_pageviews and
+    # total_read_time are 100% null across all 65,238 articles, so the leaky arm cannot be
+    # built there. Refuse rather than silently compare a model against itself.
+    leaky_src = PROC / name / f"features_leaky_{split}.parquet"
+    if not leaky_src.exists():
+        raise SystemExit(
+            f"{name}: no features_leaky_{split}.parquet. This comparison needs the serving-"
+            f"unavailable columns, which only EB-NeRD has."
+        )
+
+    base = features_for(name)
     arms = {
-        "q9_causal": FEATURES,
-        "q9_leaky": FEATURES + LEAKY_FEATURES,
+        "q9_causal": base,
+        "q9_leaky": base + LEAKY_FEATURES,
     }
     vecs = {}
     for tag, feats in arms.items():

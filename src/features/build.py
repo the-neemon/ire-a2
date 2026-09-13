@@ -58,16 +58,30 @@ def _click_events(name: str) -> tuple[dict[str, np.ndarray], set]:
     return times, set(times)
 
 
-def _causal_popularity(cands: list[str], t: np.datetime64, times: dict) -> np.ndarray:
-    """Clicks each candidate received strictly before t.
+def _causal_popularity(cands: list[str], t: np.datetime64, times: dict,
+                      window_h: float | None = None) -> np.ndarray:
+    """Clicks each candidate received strictly before t, optionally only recent ones.
 
     searchsorted with side="left" counts entries < t, so a click at exactly t is excluded
     as well as everything after it. That is the boundary the leakage test asserts.
+
+    `window_h` bounds how far back the count reaches. It cannot introduce a leak: a narrower
+    window only drops older clicks and never admits newer ones, so the "< t" upper bound is
+    untouched. Default None reproduces the original unbounded behaviour exactly.
     """
-    return np.array(
-        [np.searchsorted(times[c], t, side="left") if c in times else 0 for c in cands],
-        dtype=np.float32,
-    )
+    if window_h is None:
+        return np.array(
+            [np.searchsorted(times[c], t, side="left") if c in times else 0 for c in cands],
+            dtype=np.float32,
+        )
+    lo = t - np.timedelta64(int(window_h * 3600), "s")
+    out = np.zeros(len(cands), dtype=np.float32)
+    for i, c in enumerate(cands):
+        arr = times.get(c)
+        if arr is not None:
+            out[i] = (np.searchsorted(arr, t, side="left")
+                      - np.searchsorted(arr, lo, side="left"))
+    return out
 
 
 def _engagement_weights(
@@ -147,7 +161,8 @@ def _engagement_user_vectors(engage: dict, index: dict, mat: np.ndarray) -> dict
     return out
 
 
-def build(name: str, cfg: dict, split: str) -> None:
+def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
+          suffix: str = "") -> None:
     imps = pl.read_parquet(PROC / name / f"impressions_{split}.parquet")
     arts = pl.read_parquet(PROC / name / "articles.parquet")
 
@@ -184,7 +199,7 @@ def build(name: str, cfg: dict, split: str) -> None:
 
         f_bm25.extend(r["bm25"] if r["bm25"] is not None else [0.0] * n)
         f_emb.extend(r["emb"] if r["emb"] is not None else [0.0] * n)
-        f_pop.extend(_causal_popularity(cands, t, times).tolist())
+        f_pop.extend(_causal_popularity(cands, t, times, pop_window_h).tolist())
 
         # Freshness. published_time is fixed before any impression, so age is causal.
         ages = []
@@ -250,13 +265,54 @@ def build(name: str, cfg: dict, split: str) -> None:
         "user_scroll": np.asarray(f_scroll, dtype=np.float32),
         "engage_sim": np.asarray(f_esim, dtype=np.float32),
     })
-    dest = PROC / name / f"features_{split}.parquet"
+    keep = ["impression_id", "candidate", "label"] + features_for(name)
+    dropped = [c for c in out.columns if c not in keep]
+    out = out.select(keep)
+
+    # A feature that is "available" but constant carries no information, and a column of
+    # zeros looks exactly like a real feature to LightGBM. Emitting one silently is how
+    # five MIND columns would have become nulls without anyone noticing, so make it an
+    # error instead.
+    for f in features_for(name):
+        if out[f].null_count() == out.height or out[f].n_unique() <= 1:
+            raise SystemExit(
+                f"FATAL {name}/{split}: feature '{f}' is declared available but is "
+                f"constant or all-null. Either the source columns are missing for this "
+                f"dataset, in which case remove it from DATASET_FEATURES, or the builder "
+                f"is broken."
+            )
+
+    dest = PROC / name / f"features{suffix}_{split}.parquet"
     out.write_parquet(dest)
-    print(f"    {out.height:,} candidate rows, {len(out.columns) - 3} features -> {dest.name}")
+    print(f"    {out.height:,} candidate rows, {len(features_for(name))} features "
+          f"-> {dest.name}" + (f" (dropped {', '.join(dropped)})" if dropped else ""))
 
 
 FEATURES = ["bm25", "emb", "pop_causal", "age_hours", "recency", "cat_match",
             "hist_len", "user_read", "user_scroll", "engage_sim"]
+
+# Which features each dataset can actually support, stated per dataset rather than left to
+# whatever the columns happen to contain. info.md section 5 is the spec: MIND has no
+# behavioural columns, so any behavioural feature widens the gap between what the two
+# systems can do, and the two configurations must be kept explicitly separate and reported
+# rather than presented as one system that is quietly two different models.
+#
+# Measured on mind_small, 65,238 articles and 61,894 val impressions:
+#   published_time      100% null  -> age_hours, recency cannot be computed
+#   total_* lifetime    100% null  -> the Q9 leaky arm cannot exist on MIND either
+#   history.parquet     absent     -> user_read, user_scroll, engage_sim have no source
+#   history_timestamps  100% null lists, dtype List(Datetime) not Null, so `.list.len()`
+#                       returns null rather than 0 and an equality test against 0 matches
+#                       nothing. This is the shape that let an earlier MIND leakage test
+#                       pass over 95,071 rows while checking none of them.
+DATASET_FEATURES = {
+    "mind_small": ["bm25", "emb", "pop_causal", "cat_match", "hist_len"],
+}
+
+
+def features_for(name: str) -> list[str]:
+    """The feature set for one dataset. Defaults to all of them where nothing is missing."""
+    return DATASET_FEATURES.get(name, FEATURES)
 
 
 def main() -> None:
@@ -264,11 +320,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("datasets", nargs="*", default=list(config))
     ap.add_argument("--splits", nargs="+", default=["train", "val", "test"])
+    ap.add_argument("--pop-window-h", type=float, default=None,
+                    help="Bound causal popularity to the last N hours. Default unbounded, "
+                         "which is what ships. Cannot leak: it only drops older clicks.")
+    ap.add_argument("--suffix", default="",
+                    help="Write features<suffix>_<split>.parquet, for building an ablation "
+                         "variant without overwriting the shipped feature store.")
     args = ap.parse_args()
     for name in args.datasets:
         print(f"\n{name}")
         for split in args.splits:
-            build(name, config[name], split)
+            build(name, config[name], split, args.pop_window_h, args.suffix)
 
 
 if __name__ == "__main__":

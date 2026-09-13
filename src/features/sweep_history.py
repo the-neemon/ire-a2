@@ -101,7 +101,7 @@ def main() -> None:
     index, mat = _article_vectors(cfg)
     if index is None:
         raise SystemExit(f"{name}: no article vectors configured")
-    engage = _engagement_weights(name)
+    engage = _engagement_weights(cfg, split)
     if not engage:
         raise SystemExit(f"{name}: no engagement columns, this sweep is EB-NeRD only")
     print(f"{name}/{split}: {imps.height:,} impressions, {len(engage):,} users with history\n")

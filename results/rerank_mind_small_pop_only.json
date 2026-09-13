@@ -1,0 +1,12 @@
+{
+  "tag": "pop_only",
+  "features": [
+    "pop_causal"
+  ],
+  "best_iteration": 1,
+  "val_auc": 0.5475173722432009,
+  "test_auc": 0.5709629473512212,
+  "importance": {
+    "pop_causal": 7364.408323526382
+  }
+}
