@@ -1,0 +1,30 @@
+{
+  "tag": "obj_binary",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim"
+  ],
+  "best_iteration": 231,
+  "val_auc": 0.7327894775690506,
+  "test_auc": 0.7295380608278259,
+  "importance": {
+    "recency": 301111.91693639755,
+    "age_hours": 247165.79956769943,
+    "pop_causal": 221782.15133190155,
+    "cat_match": 117547.46909093857,
+    "engage_sim": 83262.98847723007,
+    "bm25": 26440.152207374573,
+    "hist_len": 16776.5722322464,
+    "user_read": 13789.270203113556,
+    "user_scroll": 13561.835705280304,
+    "emb": 9963.218174934387
+  }
+}
