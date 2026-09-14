@@ -1026,3 +1026,74 @@ and `age_hours` taking the top two gain slots ahead of `pop_causal`. A pointwise
 on absolute-freshness features, while the pairwise one leans on the within-impression contrast
 that actually decides the ranking.
 
+## 17. Seven new features, and why leave-one-out cannot choose a feature set (A2)
+
+Added 2026-09-14: three within-impression transforms (`pop_rank`, `emb_rank`, `pop_rel_max`),
+`ent_overlap` (Jaccard of candidate entities against the user's history entities), a second
+popularity window `pop_24h` with the ratio `pop_velocity`, and `n_cands` (impression size). All
+seven need only click times, categories and entities, so all exist on both datasets.
+
+### 17.1 Where the numbers landed
+
+| | EB-NeRD val | EB-NeRD test | MIND val | MIND test |
+|---|---|---|---|---|
+| before (10 / 5 features) | 0.7523 | 0.7523 | 0.6512 | 0.6539 |
+| after (17 / 12 features) | **0.7636** | **0.7653** | **0.6539** | **0.6666** |
+| two-stage gain, after | +0.2138 | **+0.2223** [+0.2209, +0.2238] | +0.0167 | +0.0293 |
+
+**On MIND not one of the seven is significant on either split.** The +0.0027 val gain is seven
+null effects summed. The feature engineering that works on EB-NeRD is dataset-specific, and
+MIND's ceiling is set by what its corpus lacks rather than by the ranker.
+
+### 17.2 `n_cands`: isolated AUC 0.5000, second-most valuable feature
+
+Impression size is constant within an impression, so it cannot reorder candidates and scores
+**exactly 0.5000** as an isolated feature. Removing it from the full set costs **+0.0056 val and
++0.0066 test** on EB-NeRD, second only to `cat_match`.
+
+It contributes entirely through interactions: the ranker uses how crowded an impression is to
+calibrate how far to trust everything else. This is the cleanest demonstration in the project
+that isolated-feature AUC and contribution measure different things, and it cuts against the
+isolated sweeps in section 16, which should be read with it in mind.
+
+On MIND it is worth +0.0001 val (not significant) and +0.0009 test. EB-NeRD impressions run 2 to
+73 candidates with median 8; MIND runs to 299 with median 26. The calibration does not transfer.
+
+### 17.3 `cat_match` is the only feature that transfers
+
++0.0069 EB-NeRD test, +0.0070 MIND test, the top feature on both. Category affinity is the one
+signal that behaves the same on two corpora.
+
+`ent_overlap` fails on both, including MIND, where denser entity annotation was the reason to
+expect it to work: +0.0001 val, not significant. Mean overlap on EB-NeRD is 0.0029, so shared
+entities are simply too rare to rank on.
+
+### 17.4 The important one: single-arm deltas do not compose
+
+The val grid leaves `pop_causal` (-0.0008) and `user_read` (-0.0005) with significantly
+**negative** single-arm deltas: the model is better without either. The obvious inference is to
+drop both. That inference is **wrong**, and the whole-subset arms prove it.
+
+| arm | val | vs full | test | vs full |
+|---|---|---|---|---|
+| full, 17 features | **0.7636** | | **0.7653** | |
+| lean, 15, minus `pop_causal` and `user_read` | 0.7631 | **-0.0005** sig | 0.7645 | **-0.0007** sig |
+| minimal, 6, only val-significant-positive | 0.7439 | -0.0197 sig | 0.7412 | -0.0240 sig |
+
+Removing two individually harmful features together makes the model **significantly worse on both
+splits**. They are mutually substitutable: remove one and the other compensates, remove both and
+the compensation is gone. The earlier reading that `pop_causal` had been "superseded by its own
+rank transform" was wrong, and is corrected here.
+
+The minimal set is worse by 0.024 test. The eleven features that individually looked worthless are
+collectively worth that much.
+
+**A leave-one-out grid answers "what does this add given all the others". It does not answer
+"which features should I keep."** The second question needs whole-subset arms. Both were run here
+and they disagree, which is the evidence for the claim rather than an argument from principle.
+
+Selection discipline: the prunes were chosen from the **val** grid only. Choosing them from the
+test grid would have made the reported test number selection on its own data.
+
+**Decision: ship all 17.** No pruning is justified by this evidence.
+

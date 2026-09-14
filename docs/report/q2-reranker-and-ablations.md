@@ -122,3 +122,38 @@ over a two-day window and a weak one in MIND's corpus.
 **Stage one is much stronger on MIND in absolute terms**, 0.6372 against 0.5498, so the re-ranker
 has less headroom to begin with. The two effects compound: more of the achievable ranking is
 already done by retrieval, and fewer features exist to improve on it.
+
+## The 2026-09-14 feature round, and a methodological correction
+
+Seven features added: within-impression transforms (`pop_rank`, `emb_rank`, `pop_rel_max`),
+`ent_overlap`, `pop_24h` with `pop_velocity`, and `n_cands`.
+
+| | EB-NeRD val | EB-NeRD test | MIND val | MIND test |
+|---|---|---|---|---|
+| 10 / 5 features | 0.7523 | 0.7523 | 0.6512 | 0.6539 |
+| 17 / 12 features | **0.7636** | **0.7653** | 0.6539 | 0.6666 |
+
+The headline two-stage gain is now **+0.2223 [+0.2209, +0.2238]** on EB-NeRD test and **+0.0293
+[+0.0274, +0.0313]** on MIND test.
+
+**On MIND none of the seven is significant on either split.** Reported as a result: the gains are
+specific to EB-NeRD's corpus, not to the method.
+
+**`n_cands` scores exactly 0.5000 as an isolated feature and is the second-most valuable feature
+in the set** (+0.0066 test). Constant within an impression, so it cannot rank anything by itself;
+it earns its place purely by letting the ranker calibrate how crowded an impression is.
+
+### Leave-one-out cannot choose a feature set
+
+The val grid marks `pop_causal` and `user_read` as significantly harmful individually. Removing
+both together is significantly **worse** on both splits (-0.0005 val, -0.0007 test), and a
+six-feature set built from only the significantly-positive features is worse by 0.024 test.
+
+The two features are mutually substitutable: each compensates for the other's absence, so each
+looks redundant alone and neither is. A leave-one-out ablation answers "what does this add given
+everything else"; choosing what to keep needs whole-subset arms. Both were run and they disagree,
+so this is a measured contradiction rather than a principle.
+
+All 17 features ship. The prune candidates were selected on val only; consulting the test grid to
+pick them would have made the reported test figure selection on its own data.
+
