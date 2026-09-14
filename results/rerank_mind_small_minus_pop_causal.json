@@ -4,15 +4,29 @@
     "bm25",
     "emb",
     "cat_match",
-    "hist_len"
+    "hist_len",
+    "pop_rank",
+    "emb_rank",
+    "ent_overlap",
+    "pop_24h",
+    "pop_velocity",
+    "n_cands",
+    "pop_rel_max"
   ],
-  "best_iteration": 51,
-  "val_auc": 0.6433806411807146,
-  "test_auc": 0.6472901728571737,
+  "best_iteration": 177,
+  "val_auc": 0.6531169615455782,
+  "test_auc": 0.6675370633521,
   "importance": {
-    "emb": 104806.40745162964,
-    "hist_len": 28816.265132904053,
-    "bm25": 26608.796802520752,
-    "cat_match": 26092.460708618164
+    "emb": 112465.32995128632,
+    "pop_rel_max": 77965.10639953613,
+    "pop_24h": 57082.64050388336,
+    "n_cands": 56131.19246196747,
+    "emb_rank": 40679.58408355713,
+    "bm25": 33353.68347167969,
+    "pop_rank": 30734.52135181427,
+    "hist_len": 29635.10140132904,
+    "cat_match": 28395.28924560547,
+    "pop_velocity": 27921.33341884613,
+    "ent_overlap": 8576.167086601257
   }
 }

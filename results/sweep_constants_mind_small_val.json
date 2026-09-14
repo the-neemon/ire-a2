@@ -1,0 +1,35 @@
+{
+  "halflife": [],
+  "window": [
+    {
+      "window_h": 1.0,
+      "auc": 0.5622405303879906,
+      "impressions": 61894
+    },
+    {
+      "window_h": 6.0,
+      "auc": 0.5475398536371819,
+      "impressions": 61894
+    },
+    {
+      "window_h": 24.0,
+      "auc": 0.5515509198824359,
+      "impressions": 61894
+    },
+    {
+      "window_h": 72.0,
+      "auc": 0.5506188458469181,
+      "impressions": 61894
+    },
+    {
+      "window_h": 168.0,
+      "auc": 0.5501877283505673,
+      "impressions": 61894
+    },
+    {
+      "window_h": null,
+      "auc": 0.5501877283505673,
+      "impressions": 61894
+    }
+  ]
+}

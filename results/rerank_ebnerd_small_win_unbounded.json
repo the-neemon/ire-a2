@@ -1,0 +1,30 @@
+{
+  "tag": "win_unbounded",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim"
+  ],
+  "best_iteration": 41,
+  "val_auc": 0.748912450020057,
+  "test_auc": 0.7460621645057918,
+  "importance": {
+    "pop_causal": 455098.06664276123,
+    "recency": 116278.04632949829,
+    "age_hours": 90811.92024612427,
+    "cat_match": 70197.92765808105,
+    "engage_sim": 56606.18282318115,
+    "bm25": 12378.54381942749,
+    "emb": 3695.2366104125977,
+    "hist_len": 2643.1008262634277,
+    "user_read": 2129.78800201416,
+    "user_scroll": 1169.0853958129883
+  }
+}

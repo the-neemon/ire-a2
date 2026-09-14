@@ -1,0 +1,32 @@
+{
+  "tag": "minus_pop_24h",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "cat_match",
+    "hist_len",
+    "pop_rank",
+    "emb_rank",
+    "ent_overlap",
+    "pop_velocity",
+    "n_cands",
+    "pop_rel_max"
+  ],
+  "best_iteration": 185,
+  "val_auc": 0.6541618441810239,
+  "test_auc": 0.6663416214488319,
+  "importance": {
+    "emb": 113604.81213092804,
+    "pop_rel_max": 67107.11280822754,
+    "pop_causal": 62198.41038131714,
+    "n_cands": 55135.01902675629,
+    "emb_rank": 41907.14018058777,
+    "pop_rank": 34428.56620693207,
+    "bm25": 33841.56022262573,
+    "cat_match": 28727.851952552795,
+    "hist_len": 28643.478494644165,
+    "pop_velocity": 26537.035243034363,
+    "ent_overlap": 8938.122359275818
+  }
+}

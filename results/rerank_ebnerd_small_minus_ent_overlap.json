@@ -1,0 +1,42 @@
+{
+  "tag": "minus_ent_overlap",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim",
+    "pop_rank",
+    "emb_rank",
+    "pop_24h",
+    "pop_velocity",
+    "n_cands",
+    "pop_rel_max"
+  ],
+  "best_iteration": 229,
+  "val_auc": 0.7638671541473774,
+  "test_auc": 0.7659140747971982,
+  "importance": {
+    "pop_rel_max": 593296.9585762024,
+    "cat_match": 121014.76763916016,
+    "recency": 117993.1423625946,
+    "pop_rank": 114880.87864303589,
+    "age_hours": 112887.18739128113,
+    "engage_sim": 86460.47567749023,
+    "pop_24h": 82590.45080471039,
+    "n_cands": 81888.38667201996,
+    "pop_causal": 75064.93656158447,
+    "pop_velocity": 44188.32380771637,
+    "bm25": 22238.130915641785,
+    "hist_len": 7245.61088180542,
+    "emb": 5730.460712432861,
+    "emb_rank": 5690.97366809845,
+    "user_read": 4239.113967895508,
+    "user_scroll": 2999.821683883667
+  }
+}

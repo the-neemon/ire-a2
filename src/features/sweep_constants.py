@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from src.features.build import _click_events
+from src.features.build import _click_events, features_for
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PROC = ROOT / "data/processed"
@@ -102,12 +102,18 @@ def main() -> None:
     args = ap.parse_args()
     name, split = args.dataset, args.split
 
-    feats = pl.read_parquet(PROC / name / f"features_{split}.parquet",
-                            columns=["impression_id", "label", "age_hours"])
-    print(f"{name}/{split}: recency half-life, isolated feature AUC\n")
-    print(f"{'halflife_h':>8}  {'auc':>6}")
-    halflives = sweep_halflife(feats)
-    del feats
+    # age_hours needs published_time, which MIND does not have, so the half-life sweep is
+    # EB-NeRD only. The window sweep below works anywhere, since it needs only click times.
+    halflives = []
+    if "age_hours" in features_for(name):
+        feats = pl.read_parquet(PROC / name / f"features_{split}.parquet",
+                                columns=["impression_id", "label", "age_hours"])
+        print(f"{name}/{split}: recency half-life, isolated feature AUC\n")
+        print(f"{'halflife_h':>8}  {'auc':>6}")
+        halflives = sweep_halflife(feats)
+        del feats
+    else:
+        print(f"{name}: no age_hours for this dataset, skipping the half-life sweep")
 
     imps = pl.read_parquet(PROC / name / f"impressions_{split}.parquet",
                            columns=["impression_id", "timestamp", "candidates", "clicked"])
@@ -116,10 +122,12 @@ def main() -> None:
     print(f"{'window':>10}  {'auc':>6}")
     windows = sweep_window(imps, times)
 
-    best_h = max(halflives, key=lambda r: r["auc"])
     best_w = max(windows, key=lambda r: r["auc"])
-    print(f"\nbest half-life {best_h['halflife_h']:.0f} h at {best_h['auc']:.4f} "
-          f"(current 24 h at {[r for r in halflives if r['halflife_h'] == 24.0][0]['auc']:.4f})")
+    if halflives:
+        best_h = max(halflives, key=lambda r: r["auc"])
+        cur_h = [r for r in halflives if r["halflife_h"] == 24.0][0]["auc"]
+        print(f"\nbest half-life {best_h['halflife_h']:.0f} h at {best_h['auc']:.4f} "
+              f"(current 24 h at {cur_h:.4f})")
     cur_w = [r for r in windows if r["window_h"] is None][0]
     print(f"best window {best_w['window_h'] or 'unbounded'} at {best_w['auc']:.4f} "
           f"(current unbounded at {cur_w['auc']:.4f})")

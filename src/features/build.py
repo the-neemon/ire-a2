@@ -84,6 +84,54 @@ def _causal_popularity(cands: list[str], t: np.datetime64, times: dict,
     return out
 
 
+def _rank_within(values: np.ndarray) -> np.ndarray:
+    """Average rank of each value inside its own impression, scaled to [0, 1].
+
+    The metric is per-impression AUC, so "the most popular candidate in THIS impression" is
+    what decides a ranking, and an absolute count cannot express it: a popularity of 200 is
+    dominant in a quiet impression and unremarkable in a busy one. LightGBM has to learn that
+    contrast from absolute splits otherwise, which it cannot do across impressions.
+    """
+    n = len(values)
+    if n == 1:
+        return np.array([0.5], dtype=np.float32)
+    order = np.argsort(values, kind="stable")
+    ranks = np.empty(n, dtype=np.float64)
+    ranks[order] = np.arange(n, dtype=np.float64)
+    uniq, inv, counts = np.unique(values, return_inverse=True, return_counts=True)
+    summed = np.zeros(len(counts))
+    np.add.at(summed, inv, ranks)
+    ranks = (summed / counts)[inv]
+    return (ranks / (n - 1)).astype(np.float32)
+
+
+def _entity_overlap(cands: list, hist: list, entities_of: dict) -> np.ndarray:
+    """Jaccard between the candidate's entities and every entity in the user's history.
+
+    Entities are the people, places and organisations an article is about. Embeddings capture
+    topic similarity but blur named entities, so "this user reads about Lindsey Graham" is a
+    signal the cosine only partly carries. Fully populated on both datasets and previously
+    unused.
+    """
+    hist_ents: set = set()
+    for h in hist:
+        e = entities_of.get(h)
+        if e:
+            hist_ents.update(e)
+    out = np.zeros(len(cands), dtype=np.float32)
+    if not hist_ents:
+        return out
+    for i, c in enumerate(cands):
+        ce = entities_of.get(c)
+        if not ce:
+            continue
+        ce = set(ce)
+        union = len(ce | hist_ents)
+        if union:
+            out[i] = len(ce & hist_ents) / union
+    return out
+
+
 def _engagement_weights(
     cfg: dict, split: str
 ) -> dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]:
@@ -172,6 +220,13 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
 
     category_of = dict(zip(arts["article_id"], arts["category"]))
     published = dict(zip(arts["article_id"], arts["published_time"]))
+    # A polars List column yields Series, not lists, so `if e` raises rather than testing
+    # emptiness. Materialise to python lists first and test length explicitly.
+    entities_of = {
+        a: set(e)
+        for a, e in zip(arts["article_id"].to_list(), arts["entities"].to_list())
+        if e is not None and len(e) > 0
+    }
 
     print(f"  {split}: {imps.height:,} impressions")
     times, _ = _click_events(name)
@@ -186,6 +241,8 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
     rows_imp, rows_cand, rows_lab = [], [], []
     f_bm25, f_emb, f_pop, f_age, f_rec = [], [], [], [], []
     f_cat, f_hist, f_read, f_scroll, f_esim = [], [], [], [], []
+    f_poprank, f_embrank, f_ent, f_pop24, f_vel = [], [], [], [], []
+    f_ncand, f_poprel = [], []
 
     for r in imps.iter_rows(named=True):
         cands = r["candidates"]
@@ -197,9 +254,28 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
         rows_cand.extend(cands)
         rows_lab.extend([1 if c in clicked else 0 for c in cands])
 
-        f_bm25.extend(r["bm25"] if r["bm25"] is not None else [0.0] * n)
-        f_emb.extend(r["emb"] if r["emb"] is not None else [0.0] * n)
-        f_pop.extend(_causal_popularity(cands, t, times, pop_window_h).tolist())
+        bm25_v = np.asarray(r["bm25"] if r["bm25"] is not None else [0.0] * n, dtype=np.float32)
+        emb_v = np.asarray(r["emb"] if r["emb"] is not None else [0.0] * n, dtype=np.float32)
+        pop_v = _causal_popularity(cands, t, times, pop_window_h)
+        f_bm25.extend(bm25_v.tolist())
+        f_emb.extend(emb_v.tolist())
+        f_pop.extend(pop_v.tolist())
+
+        # Within-impression contrast. See _rank_within: the ranking is decided inside one
+        # impression, so the ranker needs each candidate's standing among its actual rivals,
+        # not only its absolute value.
+        f_poprank.extend(_rank_within(pop_v).tolist())
+        f_embrank.extend(_rank_within(emb_v).tolist())
+        f_ncand.extend([float(n)] * n)
+        pop_max = float(pop_v.max())
+        f_poprel.extend((pop_v / (pop_max + 1.0)).tolist())
+
+        # Popularity velocity. 6h beats 24h beats unbounded in isolation (FACTS 16.1), which
+        # says recency of attention matters; the ratio expresses "trending now" as opposed to
+        # "steadily popular", which no single window can.
+        pop24 = _causal_popularity(cands, t, times, 24.0)
+        f_pop24.extend(pop24.tolist())
+        f_vel.extend((pop_v / (pop24 + 1.0)).tolist())
 
         # Freshness. published_time is fixed before any impression, so age is causal.
         ages = []
@@ -225,6 +301,7 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
             f_cat.extend([share.get(category_of.get(c), 0) / total for c in cands])
         else:
             f_cat.extend([0.0] * n)
+        f_ent.extend(_entity_overlap(cands, hist, entities_of).tolist())
 
         # User-level engagement quality, from strictly past clicks. These are constant
         # across an impression's candidates so they cannot rank on their own; they are
@@ -264,6 +341,13 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
         "user_read": np.asarray(f_read, dtype=np.float32),
         "user_scroll": np.asarray(f_scroll, dtype=np.float32),
         "engage_sim": np.asarray(f_esim, dtype=np.float32),
+        "pop_rank": np.asarray(f_poprank, dtype=np.float32),
+        "emb_rank": np.asarray(f_embrank, dtype=np.float32),
+        "ent_overlap": np.asarray(f_ent, dtype=np.float32),
+        "pop_24h": np.asarray(f_pop24, dtype=np.float32),
+        "pop_velocity": np.asarray(f_vel, dtype=np.float32),
+        "n_cands": np.asarray(f_ncand, dtype=np.float32),
+        "pop_rel_max": np.asarray(f_poprel, dtype=np.float32),
     })
     keep = ["impression_id", "candidate", "label"] + features_for(name)
     dropped = [c for c in out.columns if c not in keep]
@@ -289,7 +373,11 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
 
 
 FEATURES = ["bm25", "emb", "pop_causal", "age_hours", "recency", "cat_match",
-            "hist_len", "user_read", "user_scroll", "engage_sim"]
+            "hist_len", "user_read", "user_scroll", "engage_sim",
+            # Added 2026-09-14. All seven are computable on both datasets: they need only
+            # click times, categories and entities, never published_time or engagement.
+            "pop_rank", "emb_rank", "ent_overlap", "pop_24h", "pop_velocity",
+            "n_cands", "pop_rel_max"]
 
 # Which features each dataset can actually support, stated per dataset rather than left to
 # whatever the columns happen to contain. info.md section 5 is the spec: MIND has no
@@ -306,8 +394,30 @@ FEATURES = ["bm25", "emb", "pop_causal", "age_hours", "recency", "cat_match",
 #                       nothing. This is the shape that let an earlier MIND leakage test
 #                       pass over 95,071 rows while checking none of them.
 DATASET_FEATURES = {
-    "mind_small": ["bm25", "emb", "pop_causal", "cat_match", "hist_len"],
+    "mind_small": ["bm25", "emb", "pop_causal", "cat_match", "hist_len",
+                   "pop_rank", "emb_rank", "ent_overlap", "pop_24h", "pop_velocity",
+                   "n_cands", "pop_rel_max"],
 }
+
+
+# How far back `pop_causal` counts, per dataset. Measured on EB-NeRD small: a 6 hour window
+# beats unbounded by +0.0034 [+0.0026, +0.0043] val and +0.0062 [+0.0058, +0.0067] test at
+# ranker level, paired bootstrap, significant on both. "How popular is this right now" is a
+# better news signal than "how popular has it ever been". See FACTS.md 16.1.
+#
+# MIND is left unbounded on purpose. Its popularity is derived from impression timestamps
+# rather than per-click history, its corpus spans a different window, and the sweep was never
+# run there. Shipping an EB-NeRD constant to a dataset it was not measured on is the kind of
+# single global setting info.md section 5 warns against.
+POP_WINDOW_H = {
+    "ebnerd_demo": 6.0,
+    "ebnerd_small": 6.0,
+}
+
+
+def pop_window_for(name: str) -> float | None:
+    """Hours of history `pop_causal` counts for one dataset. None means unbounded."""
+    return POP_WINDOW_H.get(name)
 
 
 def features_for(name: str) -> list[str]:
@@ -321,8 +431,9 @@ def main() -> None:
     ap.add_argument("datasets", nargs="*", default=list(config))
     ap.add_argument("--splits", nargs="+", default=["train", "val", "test"])
     ap.add_argument("--pop-window-h", type=float, default=None,
-                    help="Bound causal popularity to the last N hours. Default unbounded, "
-                         "which is what ships. Cannot leak: it only drops older clicks.")
+                    help="Override the per-dataset causal-popularity window, in hours. "
+                         "Default is POP_WINDOW_H for the dataset. Cannot leak: a window "
+                         "only drops older clicks, never admits newer ones.")
     ap.add_argument("--suffix", default="",
                     help="Write features<suffix>_<split>.parquet, for building an ablation "
                          "variant without overwriting the shipped feature store.")
@@ -330,7 +441,8 @@ def main() -> None:
     for name in args.datasets:
         print(f"\n{name}")
         for split in args.splits:
-            build(name, config[name], split, args.pop_window_h, args.suffix)
+            window = args.pop_window_h if args.pop_window_h is not None else pop_window_for(name)
+            build(name, config[name], split, window, args.suffix)
 
 
 if __name__ == "__main__":

@@ -3,10 +3,10 @@
   "features": [
     "pop_causal"
   ],
-  "best_iteration": 65,
-  "val_auc": 0.6954222454631477,
-  "test_auc": 0.6855905727866676,
+  "best_iteration": 11,
+  "val_auc": 0.73480369359778,
+  "test_auc": 0.7293035407671077,
   "importance": {
-    "pop_causal": 988312.9514026642
+    "pop_causal": 290988.1558535099
   }
 }

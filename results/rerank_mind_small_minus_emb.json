@@ -4,15 +4,29 @@
     "bm25",
     "pop_causal",
     "cat_match",
-    "hist_len"
+    "hist_len",
+    "pop_rank",
+    "emb_rank",
+    "ent_overlap",
+    "pop_24h",
+    "pop_velocity",
+    "n_cands",
+    "pop_rel_max"
   ],
-  "best_iteration": 246,
-  "val_auc": 0.6198451134532788,
-  "test_auc": 0.626297951340078,
+  "best_iteration": 138,
+  "val_auc": 0.6496649488177724,
+  "test_auc": 0.6656943903001681,
   "importance": {
-    "pop_causal": 117292.7967262268,
-    "bm25": 106425.26867103577,
-    "hist_len": 63743.84748220444,
-    "cat_match": 54389.75972652435
+    "emb_rank": 112539.24202346802,
+    "pop_rel_max": 63869.460401535034,
+    "n_cands": 53209.58022880554,
+    "bm25": 49407.8224401474,
+    "pop_causal": 43729.4052066803,
+    "pop_rank": 31928.944999694824,
+    "cat_match": 30869.147888183594,
+    "hist_len": 26263.299836158752,
+    "pop_velocity": 23115.84977054596,
+    "pop_24h": 22093.199374198914,
+    "ent_overlap": 8130.082883834839
   }
 }

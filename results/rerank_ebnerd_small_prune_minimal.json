@@ -1,0 +1,22 @@
+{
+  "tag": "prune_minimal",
+  "features": [
+    "cat_match",
+    "n_cands",
+    "bm25",
+    "pop_rank",
+    "hist_len",
+    "emb"
+  ],
+  "best_iteration": 44,
+  "val_auc": 0.7438820559855207,
+  "test_auc": 0.7412421260615717,
+  "importance": {
+    "pop_rank": 573368.862575531,
+    "cat_match": 141406.07265853882,
+    "emb": 50104.334480285645,
+    "n_cands": 40366.34325790405,
+    "bm25": 18557.006370544434,
+    "hist_len": 5208.425495147705
+  }
+}

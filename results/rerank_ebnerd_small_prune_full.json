@@ -1,5 +1,5 @@
 {
-  "tag": "full",
+  "tag": "prune_full",
   "features": [
     "bm25",
     "emb",
