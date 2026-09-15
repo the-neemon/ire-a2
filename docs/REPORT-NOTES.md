@@ -4,10 +4,22 @@ Everything the Q6 design note will draw on, in one place: what we built, every m
 with its provenance, what worked, what did not, the tradeoffs, and the open questions.
 
 **Status: living document, updated as results land.** Anything marked TO MEASURE is a known gap,
-not an oversight. Last updated 2026-09-08 with Yash's `ebnerd_small` ablations (3.2), the Q5
-harness over the two-stage output (2, 5) and the Q4 serving bench (7.3). Every number here also exists in `FACTS.md` (measurements) or `ABLATIONS.md`
+not an oversight. Every number here also exists in `FACTS.md` (measurements) or `ABLATIONS.md`
 (experiments); this file is the narrative view, those two are the ledgers. If they disagree, the
 ledgers win.
+
+**Freshness, 2026-09-15.** This file currently holds two vintages and the boundary is marked
+explicitly rather than left to the reader:
+
+| section | state |
+|---|---|
+| 2 headline, 3.1 grid, 5 Q9, 9.x findings | **current**, 22 features, test 0.7908 |
+| 2 full metric tables (val and test), `rerank - {bm25,emb,fused}` | **STALE**, 10-feature model |
+
+The stale tables are flagged in place. They come from `src.eval.run` and need **regenerating, not
+editing**: the AUC column could be corrected by hand from the grid, but MRR, nDCG, diversity,
+novelty, coverage and every slice could not, and a half-corrected table is worse than a clearly
+stale one. Owner: Yash, `src/eval/` is his lane.
 
 **Metric convention, stated once.** Ranking numbers are **per-impression AUC**: the Mann-Whitney
 AUC computed within each impression and averaged over impressions containing both classes.
@@ -58,12 +70,24 @@ present for the ranker to interact with. Section 6 has the measurement that make
 
 | system | val | test |
 |---|---|---|
-| stage one alone (bm25 + emb) | 0.5498 | |
-| **two-stage re-ranker (ships)** | **0.7575** | **0.7429** |
-| same model + serving-unavailable features | 0.7796 | |
+| stage one alone (bm25 + emb) | 0.5498 | 0.5430 |
+| **two-stage re-ranker (ships)** | **0.7885** | **0.7908** |
+| same model + serving-unavailable features | 0.7753 (16.2 arm) | |
+| what we could actually upload to Codabench | 0.7434 | 0.7351 |
 
-**The behavioural axis is worth +0.2077 AUC**, CI [+0.2048, +0.2107], over what Assignment 1
-could do. That is the single most important number in the report.
+**The behavioural axis is worth +0.2223 AUC on test**, CI [+0.2209, +0.2238], over what
+Assignment 1 could do. That is the single most important number in the report.
+
+**This number has moved three times, each time for a reason worth stating**, and the history is
+part of the result rather than noise to be tidied away:
+
+| date | test | what changed |
+|---|---|---|
+| 2026-09-08 | 0.7429 | first complete two-stage system |
+| 2026-09-12 | 0.7461 | engagement leak fixed; test went **up**, see 9.1 |
+| 2026-09-14 | 0.7523 | 6 h causal-popularity window shipped |
+| 2026-09-14 | 0.7653 | seven features incl. within-impression ranks |
+| **2026-09-14** | **0.7908** | **five exposure features** |
 
 For scale, A1's best complete systems were 0.5397 (EB-NeRD small test) and 0.6503 (MIND
 Codabench). `pop_causal` **alone** reaches 0.6954, above both.
@@ -72,18 +96,33 @@ Codabench). `pop_causal` **alone** reaches 0.6954, above both.
 against all three rather than only the strongest, because "beats the best baseline" and "beats
 the baseline we happened to ship" are different claims.
 
+> **STALE, owner Yash.** The three rows below were produced by `src.eval.run` against re-ranker
+> output that has since been regenerated four times. The *shape* of the finding is unchanged and
+> the sign is not in doubt, but the magnitudes are from the 10-feature model. Regenerating them is
+> a single harness re-run, not an edit.
+
 | comparison | val AUC | test AUC | significant |
 |---|---|---|---|
-| rerank - bm25 | **+0.2370** [+0.2339, +0.2402] | **+0.2322** [+0.2306, +0.2338] | yes |
-| rerank - emb | **+0.2068** [+0.2039, +0.2095] | **+0.2032** [+0.2018, +0.2048] | yes |
-| rerank - fused | **+0.2047** [+0.2018, +0.2076] | **+0.2049** [+0.2034, +0.2064] | yes |
+| rerank - bm25 | +0.2370 [+0.2339, +0.2402] | +0.2322 [+0.2306, +0.2338] | yes |
+| rerank - emb | +0.2068 [+0.2039, +0.2095] | +0.2032 [+0.2018, +0.2048] | yes |
+| rerank - fused | +0.2047 [+0.2018, +0.2076] | +0.2049 [+0.2034, +0.2064] | yes |
+
+The current `rerank - stage1_only` figure, measured directly by the ablation grid rather than the
+harness, is **+0.2138 val and +0.2223 test** [+0.2209, +0.2238].
 
 The trainer computes per-impression AUC in independent code and agrees with the harness to four
 decimals on both splits. That agreement is the check that the flat per-candidate table was
 reshaped into `candidates` order correctly: a mis-ordered join yields a plausible number rather
 than an error, so it is verified against a figure produced elsewhere rather than assumed.
 
-**The full metric set (Q5), val, with CIs in `results/ebnerd_small_val.md`:**
+**The full metric set (Q5), val, with CIs in `results/ebnerd_small_val.md`.**
+
+> **STALE, owner Yash.** Both metric tables below (val and test) quote `rerank` at 0.7575 and
+> 0.7429, which is the 10-feature model from before the leak fix. Every non-AUC column
+> (MRR, nDCG, diversity, novelty, coverage) and every slice is equally affected, since all of them
+> are computed from the same scored output. These need **regenerating from `src.eval.run`**, not
+> editing by hand: the AUC column could be corrected from the grid, but the rest could not, and a
+> half-corrected table is worse than a clearly stale one.
 
 | system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |
 |---|---|---|---|---|---|
@@ -153,17 +192,58 @@ less-clicked articles. Stated as a tradeoff rather than reporting the accuracy g
 
 ### 3.1 The A2 re-ranker (paired bootstrap, 1000 resamples, shared, seed 13)
 
-> **Caveat added 2026-09-08, read section 9.1 before quoting this table.** Every number in it is
-> a **val** figure, and three of the ten features (`engage_sim`, `user_read`, `user_scroll`) were
-> built from future-contaminated history on train and val. The grid needs re-running once that is
-> fixed. The test-split headline is unaffected and is the number to quote in the meantime.
+The 2026-09-08 contamination caveat is **discharged**: the grid was re-run on clean features on
+2026-09-12, and again on 2026-09-14 after the feature set grew. The superseded figures are kept in
+the comparison at the end of this section because they are the evidence for what the leak was
+worth.
 
-**RE-RUN 2026-09-12 on clean features.** The table below replaces the contaminated one; the
-superseded figures are kept in the comparison at the end of this section because they are the
-evidence for what the leak was worth.
+**CURRENT, 22 features, 2026-09-14.** Full model **0.7885** on 64,365 val impressions and
+**0.7908** on 244,647 test. Nineteen arms; the ten most informative are shown.
 
-Each arm removes exactly one feature and retrains. Full model = **0.7489** on 64,365 val
-impressions, and **0.7461** on 244,647 test impressions.
+| arm | val AUC | full - arm | sig | test delta | sig |
+|---|---|---|---|---|---|
+| stage1_only | 0.5498 | **+0.2138** | yes | **+0.2223** | yes |
+| pop_only | 0.7348 | +0.0288 | yes | +0.0360 | yes |
+| minus `cat_match` | 0.7574 | +0.0062 | yes | +0.0069 | yes |
+| minus `n_cands` | 0.7580 | +0.0056 | yes | +0.0066 | yes |
+| minus `bm25` | 0.7625 | +0.0011 | yes | +0.0004 | no |
+| minus `pop_rank` | 0.7629 | +0.0007 | marginal | +0.0003 | yes |
+| minus `engage_sim` | 0.7633 | +0.0003 | **no** | +0.0005 | yes |
+| minus `emb` | 0.7637 | -0.0001 | **no** | -0.0003 | yes, negative |
+| minus `ent_overlap` | 0.7639 | -0.0003 | **no** | -0.0006 | yes, negative |
+| minus `pop_causal` | 0.7644 | **-0.0008** | yes, negative | -0.0006 | yes, negative |
+
+Three things in that table are worth saying out loud.
+
+**`n_cands` is the second most valuable feature and scores exactly 0.5000 in isolation.** It is
+constant within an impression, so it cannot reorder anything by itself; it earns its place purely
+by letting the ranker calibrate how crowded an impression is. This is the clearest evidence in the
+project that isolated-feature AUC and contribution measure different things.
+
+**`pop_causal` now reads as harmful**, which is a trap rather than a finding. See 3.1.1.
+
+**`ent_overlap` failed on both datasets**, including MIND where denser entity annotation was the
+reason to expect it to work. Reported because a negative result costs nothing to report.
+
+### 3.1.1 Leave-one-out cannot choose a feature set
+
+The grid marks `pop_causal` and `user_read` as individually harmful, so the obvious move is to
+drop both. **That inference is wrong**, and whole-subset arms prove it.
+
+| arm | val | vs full | test | vs full |
+|---|---|---|---|---|
+| full, 22 features | **0.7885** | | **0.7908** | |
+| minus `pop_causal` and `user_read` | 0.7631 | **-0.0005** sig | 0.7645 | **-0.0007** sig |
+| only the val-significant features | 0.7439 | -0.0197 sig | 0.7412 | -0.0240 sig |
+
+They are mutually substitutable: remove one and the other compensates, remove both and the
+compensation is gone. A leave-one-out ablation answers "what does this add given everything else",
+never "what should I keep". **Ship all 22.**
+
+### 3.1.2 The superseded 10-feature grid, kept as evidence
+
+Full model was **0.7489** val / **0.7461** test after the leak fix, and **0.7575** / **0.7429**
+before it.
 
 | arm | val AUC | full - arm | 95% CI | sig | test delta | sig |
 |---|---|---|---|---|---|---|
@@ -299,12 +379,13 @@ random), ANN indexes (10 to 20x faster but exact search was never the bottleneck
 
 | arm | val AUC |
 |---|---|
-| causal only, **ships** | **0.7489** |
-| + article lifetime aggregates | **0.7753** |
-| **difference** | **+0.0264** [+0.0249, +0.0277], significant |
+| causal only, **ships** | **0.7523** |
+| + article lifetime aggregates | **0.7749** |
+| **difference** | **+0.0226** [+0.0212, +0.0240], significant |
 
-Previously +0.0222 on contaminated features. The gap **widened**, which looks backwards until you
-see why: fixing the leak lowered the honest arm from 0.7575 to 0.7489, because part of its
+Was +0.0222 on contaminated features, then +0.0264 after the leak fix, now +0.0226 after the 6 h
+popularity window shipped. The leak fix **widened** it, which looks backwards until you see why:
+fixing the leak lowered the honest arm from 0.7575 to 0.7489, because part of its
 measured quality had been future clicks in `engage_sim`, `user_read` and `user_scroll`. The leaky
 arm fell less, since it still holds the lifetime aggregates. So the system became more honest and
 the measured cost of honesty rose. The conclusion is unchanged and slightly stronger.
@@ -315,8 +396,8 @@ article's whole lifetime including time after the impression.
 **The story is how small +0.0264 is.** A1 measured the same class of feature at +0.042 (EB-NeRD
 small) and +0.075 (demo). A1 was comparing leaky popularity against a system with **no**
 popularity signal; here it competes with `pop_causal`. So most of what lifetime popularity
-provided is legitimately obtainable. Cheating is worth +0.0264; the honest behavioural axis is
-worth +0.1991, about 7.5 times more.
+provided is legitimately obtainable. Cheating is worth +0.0226; the honest behavioural axis is
+worth +0.2223 on test, about **ten times more**.
 
 **MIND cannot run this comparison at all.** `total_inviews`, `total_pageviews` and
 `total_read_time` are 100% null across all 65,238 MIND articles, so this is an EB-NeRD result.
@@ -329,7 +410,7 @@ through the full Q5 harness, where `rerank` uses only pre-impression features an
 
 | | val AUC | test AUC |
 |---|---|---|
-| rerank (servable) | **0.7575** | **0.7429** |
+| rerank (servable) | **0.7885** | **0.7908** |
 | fused+popularity (**not** servable) | 0.5784 | 0.5797 |
 
 A1 framed giving up the leak as "the cost of honesty". At the two-stage level that framing no
