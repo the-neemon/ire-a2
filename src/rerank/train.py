@@ -27,6 +27,8 @@ from src.features.build import features_for
 ROOT = Path(__file__).resolve().parent.parent.parent
 PROC = ROOT / "data/processed"
 RESULTS = ROOT / "results"
+MODELS = ROOT / "models"
+MODELS.mkdir(exist_ok=True)
 
 PARAMS = {
     "objective": "lambdarank",
@@ -100,6 +102,10 @@ def run(name: str, features: list[str], tag: str, source: str = "features") -> d
 
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / f"rerank_{name}_{tag}.json").write_text(json.dumps(out, indent=2))
+    # Persist the booster itself, not just its scores: the Codabench submission path has to
+    # score a held-out set this process never sees, and retraining there would risk a model
+    # that differs from the one these numbers describe.
+    model.save_model(str(MODELS / f"{name}_{tag}.txt"), num_iteration=model.best_iteration)
     for split, (f, s) in scores.items():
         f.select(["impression_id", "candidate", "label"]).with_columns(
             pl.Series("score", s)

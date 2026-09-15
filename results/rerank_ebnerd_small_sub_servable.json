@@ -1,0 +1,42 @@
+{
+  "tag": "sub_servable",
+  "features": [
+    "emb",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim",
+    "emb_rank",
+    "ent_overlap",
+    "n_cands",
+    "exp_causal",
+    "exp_24h",
+    "exp_velocity",
+    "exp_rank",
+    "exp_rel_max"
+  ],
+  "best_iteration": 299,
+  "val_auc": 0.7434402527438256,
+  "test_auc": 0.7351394827376525,
+  "importance": {
+    "age_hours": 266720.7991504669,
+    "recency": 222609.69849777222,
+    "n_cands": 168949.85978603363,
+    "exp_rel_max": 136812.20778369904,
+    "engage_sim": 99013.98471260071,
+    "exp_rank": 92064.1360206604,
+    "cat_match": 89006.63507080078,
+    "exp_causal": 60205.402070999146,
+    "exp_24h": 56583.274512290955,
+    "exp_velocity": 52810.82307624817,
+    "ent_overlap": 33783.339118003845,
+    "emb": 13157.580474853516,
+    "hist_len": 12285.088564872742,
+    "emb_rank": 9818.814096450806,
+    "user_scroll": 5621.013013839722,
+    "user_read": 4911.515377044678
+  }
+}

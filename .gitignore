@@ -29,3 +29,7 @@ __pycache__/
 
 # LibreOffice editing locks, created if a deliverable is opened in an office app.
 .~lock.*#
+
+# Trained boosters: regenerable from src/rerank/train.py, and the submission path reads them
+# by path rather than from git.
+models/

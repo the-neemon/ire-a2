@@ -1097,3 +1097,56 @@ test grid would have made the reported test number selection on its own data.
 
 **Decision: ship all 17.** No pruning is justified by this evidence.
 
+## 18. Exposure features, and what can actually be submitted to Codabench (A2)
+
+### 18.1 The constraint that produced them
+
+The Codabench test files **withhold `article_ids_clicked`**. Verified by comparing columns:
+`ebnerd_small/train/behaviors.parquet` minus `ebnerd_testset/test/behaviors.parquet` leaves
+exactly `article_ids_clicked`, `article_id`, `next_read_time`, `next_scroll_percentage`, all of
+them outcomes, and the testset adds `is_beyond_accuracy`. That is the standard leaderboard
+arrangement: labelled data to train on, labels withheld on the evaluation set.
+
+`pop_causal` counts clicks strictly before each impression, so on the test period it needs
+precisely the withheld column. The same goes for `pop_24h`, `pop_velocity`, `pop_rank` and
+`pop_rel_max`. **Five of our features are structurally uncomputable at submission time.**
+
+`article_ids_inview` IS present, so exposure is computable: "how often has this article been
+shown strictly before t". Five exposure features mirror the popularity family with the same
+strict `< t` cut, so they cannot leak either. A live recommender knows its own exposure log
+without waiting for click feedback, which makes this the more realistic feature in any case.
+
+### 18.2 They improved the reported system too
+
+Built for the submission, they turned out to be a large win offline.
+
+| EB-NeRD small | val | test |
+|---|---|---|
+| 17 features | 0.7636 | 0.7653 |
+| **22 features, with exposure** | **0.7885** | **0.7908** |
+
+**+0.0255 test.** `exp_rel_max` is the second-highest-gain feature in the model, behind only
+`pop_rel_max`. Exposure and clicks are not redundant: how often an article was *shown* carries
+information that how often it was *clicked* does not, presumably about editorial promotion.
+
+### 18.3 What the leaderboard entry will be
+
+| EB-NeRD small | val | test |
+|---|---|---|
+| reported, 22 features | 0.7885 | **0.7908** |
+| submittable, 16 features | 0.7434 | **0.7351** |
+| gap | -0.0451 [-0.0467, -0.0433] | **-0.0556** [-0.0565, -0.0547] |
+
+Six features are absent from the submission, in two distinct categories that should not be
+conflated:
+
+- **Five are impossible**: the click-popularity family, no source, see 18.1.
+- **One is a choice**: `bm25` is fully computable but dense over the corpus per distinct history,
+  measured at ~1.6 h for MIND-large's 2M distinct histories. The ablation prices it at +0.0011
+  val and +0.0004 test, so it is dropped on cost and the decision is reversible.
+
+**The submission is still the behavioural system**, which is the point. A1's embeddings-only
+entry scored 0.5967 on the EB-NeRD leaderboard and stage one here is 0.5430; the submittable
+re-ranker is 0.7351. Reporting both numbers separately, never letting the better one stand in for
+the uploaded one, is the same discipline `submit.py` already applied.
+

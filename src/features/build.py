@@ -58,6 +58,35 @@ def _click_events(name: str) -> tuple[dict[str, np.ndarray], set]:
     return times, set(times)
 
 
+def _exposure_events(name: str) -> dict[str, np.ndarray]:
+    """Every (article, shown-at time) from the in-view lists, grouped by article and sorted.
+
+    Exposure, not clicks. This exists because the Codabench test files withhold
+    `article_ids_clicked`: the labels are the thing being predicted, so no click log exists for
+    the leaderboard period and `pop_causal` has no source there. The in-view lists and their
+    timestamps ARE present, so "how often has this article been shown before t" is computable
+    at submission time and is a legitimate causal substitute for click popularity.
+
+    A live recommender knows its own exposure log, so this is also the more realistic feature:
+    it needs no feedback loop back from clicks.
+    """
+    frames = []
+    for split in ("train", "val", "test"):
+        f = PROC / name / f"impressions_{split}.parquet"
+        if f.exists():
+            frames.append(
+                pl.read_parquet(f, columns=["timestamp", "candidates"])
+                .explode("candidates")
+                .drop_nulls("candidates")
+            )
+    events = pl.concat(frames)
+    out: dict[str, np.ndarray] = {}
+    for article, grp in events.group_by("candidates"):
+        key = article[0] if isinstance(article, tuple) else article
+        out[key] = np.sort(grp["timestamp"].to_numpy())
+    return out
+
+
 def _causal_popularity(cands: list[str], t: np.datetime64, times: dict,
                       window_h: float | None = None) -> np.ndarray:
     """Clicks each candidate received strictly before t, optionally only recent ones.
@@ -231,6 +260,8 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
     print(f"  {split}: {imps.height:,} impressions")
     times, _ = _click_events(name)
     print(f"    click history for {len(times):,} articles")
+    shown = _exposure_events(name)
+    print(f"    exposure history for {len(shown):,} articles")
     engage = _engagement_weights(cfg, split)
     print(f"    engagement arrays for {len(engage):,} users"
           if engage else "    no engagement columns for this dataset")
@@ -243,6 +274,7 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
     f_cat, f_hist, f_read, f_scroll, f_esim = [], [], [], [], []
     f_poprank, f_embrank, f_ent, f_pop24, f_vel = [], [], [], [], []
     f_ncand, f_poprel = [], []
+    f_exp, f_exp24, f_expvel, f_exprank, f_exprel = [], [], [], [], []
 
     for r in imps.iter_rows(named=True):
         cands = r["candidates"]
@@ -276,6 +308,17 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
         pop24 = _causal_popularity(cands, t, times, 24.0)
         f_pop24.extend(pop24.tolist())
         f_vel.extend((pop_v / (pop24 + 1.0)).tolist())
+
+        # The same five shapes over exposure rather than clicks, so a model trained on these
+        # can actually be served on the leaderboard test set. Same strict "< t" cut, so these
+        # cannot leak either.
+        exp_v = _causal_popularity(cands, t, shown, pop_window_h)
+        exp24 = _causal_popularity(cands, t, shown, 24.0)
+        f_exp.extend(exp_v.tolist())
+        f_exp24.extend(exp24.tolist())
+        f_expvel.extend((exp_v / (exp24 + 1.0)).tolist())
+        f_exprank.extend(_rank_within(exp_v).tolist())
+        f_exprel.extend((exp_v / (float(exp_v.max()) + 1.0)).tolist())
 
         # Freshness. published_time is fixed before any impression, so age is causal.
         ages = []
@@ -348,6 +391,11 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
         "pop_velocity": np.asarray(f_vel, dtype=np.float32),
         "n_cands": np.asarray(f_ncand, dtype=np.float32),
         "pop_rel_max": np.asarray(f_poprel, dtype=np.float32),
+        "exp_causal": np.asarray(f_exp, dtype=np.float32),
+        "exp_24h": np.asarray(f_exp24, dtype=np.float32),
+        "exp_velocity": np.asarray(f_expvel, dtype=np.float32),
+        "exp_rank": np.asarray(f_exprank, dtype=np.float32),
+        "exp_rel_max": np.asarray(f_exprel, dtype=np.float32),
     })
     keep = ["impression_id", "candidate", "label"] + features_for(name)
     dropped = [c for c in out.columns if c not in keep]
@@ -377,7 +425,10 @@ FEATURES = ["bm25", "emb", "pop_causal", "age_hours", "recency", "cat_match",
             # Added 2026-09-14. All seven are computable on both datasets: they need only
             # click times, categories and entities, never published_time or engagement.
             "pop_rank", "emb_rank", "ent_overlap", "pop_24h", "pop_velocity",
-            "n_cands", "pop_rel_max"]
+            "n_cands", "pop_rel_max",
+            # Exposure counterparts, computable on the Codabench test files where clicks are
+            # withheld. See _exposure_events.
+            "exp_causal", "exp_24h", "exp_velocity", "exp_rank", "exp_rel_max"]
 
 # Which features each dataset can actually support, stated per dataset rather than left to
 # whatever the columns happen to contain. info.md section 5 is the spec: MIND has no
@@ -396,7 +447,8 @@ FEATURES = ["bm25", "emb", "pop_causal", "age_hours", "recency", "cat_match",
 DATASET_FEATURES = {
     "mind_small": ["bm25", "emb", "pop_causal", "cat_match", "hist_len",
                    "pop_rank", "emb_rank", "ent_overlap", "pop_24h", "pop_velocity",
-                   "n_cands", "pop_rel_max"],
+                   "n_cands", "pop_rel_max",
+                   "exp_causal", "exp_24h", "exp_velocity", "exp_rank", "exp_rel_max"],
 }
 
 

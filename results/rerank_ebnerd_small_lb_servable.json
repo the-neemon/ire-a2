@@ -1,0 +1,34 @@
+{
+  "tag": "lb_servable",
+  "features": [
+    "bm25",
+    "emb",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim",
+    "emb_rank",
+    "ent_overlap",
+    "n_cands"
+  ],
+  "best_iteration": 44,
+  "val_auc": 0.7213044533120637,
+  "test_auc": 0.7150269651395376,
+  "importance": {
+    "age_hours": 195350.9606552124,
+    "recency": 154745.97035217285,
+    "n_cands": 84790.80979156494,
+    "engage_sim": 68252.75201797485,
+    "cat_match": 47239.10704040527,
+    "bm25": 15269.64517211914,
+    "ent_overlap": 11897.755207061768,
+    "emb": 4518.924987792969,
+    "emb_rank": 3802.576416015625,
+    "hist_len": 3199.832405090332,
+    "user_read": 1912.7278213500977,
+    "user_scroll": 1313.862907409668
+  }
+}

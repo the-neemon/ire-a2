@@ -1,0 +1,32 @@
+{
+  "tag": "submission",
+  "features": [
+    "emb",
+    "cat_match",
+    "hist_len",
+    "emb_rank",
+    "ent_overlap",
+    "n_cands",
+    "exp_causal",
+    "exp_24h",
+    "exp_velocity",
+    "exp_rank",
+    "exp_rel_max"
+  ],
+  "best_iteration": 69,
+  "val_auc": 0.634853945566263,
+  "test_auc": 0.6460340867411645,
+  "importance": {
+    "emb": 100395.0689239502,
+    "exp_velocity": 36866.742248535156,
+    "cat_match": 30294.037197113037,
+    "n_cands": 27064.431617736816,
+    "emb_rank": 25225.661781311035,
+    "exp_rel_max": 21421.55580329895,
+    "exp_rank": 19265.984994888306,
+    "hist_len": 14658.179206848145,
+    "exp_causal": 8463.625722885132,
+    "ent_overlap": 6824.822727203369,
+    "exp_24h": 6521.859859466553
+  }
+}
