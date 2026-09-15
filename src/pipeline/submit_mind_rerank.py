@@ -144,7 +144,11 @@ def main() -> None:
     print(f"  exposure for {sum(1 for a in exposure if a is not None):,} articles")
 
     OUT.mkdir(exist_ok=True)
-    txt = OUT / "prediction.txt"
+    # Name the intermediate after the archive, not a fixed path: otherwise a --limit
+    # smoke run overwrites a completed full run's text file. A partial file written to
+    # the real upload path is this project's most expensive recorded mistake (0.84% of
+    # the test set, scored 0.5012, looked like a valid submission and a bad model).
+    txt = OUT / (Path(args.out).stem + "__prediction.txt")
     written = 0
     with txt.open("w") as fh:
         for offset in range(0, total, BATCH):

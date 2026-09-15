@@ -151,7 +151,11 @@ def main() -> None:
     n_ev = len(ev_time)
 
     OUT.mkdir(exist_ok=True)
-    txt = OUT / "predictions.txt"
+    # Name the intermediate after the archive, not a fixed path: otherwise a --limit
+    # smoke run overwrites a completed full run's text file. A partial file written to
+    # the real upload path is this project's most expensive recorded mistake (0.84% of
+    # the test set, scored 0.5012, looked like a valid submission and a bad model).
+    txt = OUT / (Path(args.out).stem + "__predictions.txt")
     written = 0
 
     # The sweep requires time order; the submission requires the test file's own row order.
