@@ -8,10 +8,25 @@ only *within a block*: see the engagement section at the bottom of this file, wh
 merging two blocks leaked future clicks and went unnoticed because nothing here checked
 them.
 
+`pop_causal` counts clicks in a bounded window (t - w, t) rather than everything before t,
+where w is per-dataset: 6 hours on EB-NeRD, unbounded on MIND. These tests read w from
+build.py's POP_WINDOW_H and recompute the count against it. Reading it matters: a test that
+expected the unbounded count would fail against the shipped 6 h window, and an earlier
+version of this file did exactly that. Worse, it failed in a way that cannot tell a narrower
+window from a leak, because both make the feature disagree with "every click before t". The
+mask below is two-sided, so it distinguishes them.
+
+The window cannot itself leak. It only moves the lower bound forward and never touches the
+strict "< t" upper bound, which is the boundary the brief is about.
+
 Every assertion here is checked for non-vacuity: a test that passes because it compared
-nothing is worse than no test, and that has already happened once on this project.
+nothing is worse than no test, and that has already happened once on this project. Twice,
+in fact: the popularity injection test below was named identically to the engagement one,
+so Python kept only the second and the first never ran from the day it was written until
+2026-09-16. Hence the distinct names now.
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -21,6 +36,12 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 PROC = ROOT / "data/processed"
 DATASETS = ["ebnerd_demo", "ebnerd_small", "mind_small"]
+
+# `make test` runs `python -m pytest` from the repo root, which puts it on sys.path; a bare
+# `pytest tests/` does not. Import the window constant either way.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from src.features.build import pop_window_for  # noqa: E402
 
 
 @pytest.fixture(params=DATASETS)
@@ -45,14 +66,33 @@ def _click_times(name: str) -> dict[str, np.ndarray]:
             for a, g in ev.group_by("clicked")}
 
 
-def test_causal_popularity_counts_only_the_strict_past(built):
-    """Recompute pop_causal independently and require an exact match.
+def _count_in_window(arr: np.ndarray, t: np.datetime64, window_h: float | None) -> int:
+    """Clicks in (t - window_h, t), counted with an explicit boolean mask.
 
-    Independent means a different code path from the one under test: this counts with an
-    explicit boolean mask rather than searchsorted, so a bug in the bisection would show up
-    as a disagreement instead of being reproduced identically.
+    Independent of the code under test on purpose: build.py bisects a sorted array with
+    searchsorted, this compares every element, so a bug in the bisection shows up as a
+    disagreement instead of being reproduced identically.
+
+    Both bounds are asserted at once, and that is the point. `arr < t` is the boundary the
+    brief requires. `arr >= lo` is the window we chose. Testing only the first would pass a
+    build that had silently lost its window; testing neither separately is how the previous
+    version of this file ended up unable to say which of the two had changed.
+    """
+    mask = arr < t
+    if window_h is not None:
+        mask &= arr >= t - np.timedelta64(int(window_h * 3600), "s")
+    return int(mask.sum())
+
+
+def test_causal_popularity_counts_only_the_strict_past(built):
+    """Recompute pop_causal independently, at the configured window, and require equality.
+
+    Exact equality rather than an inequality, because the weaker claim "no more than the
+    clicks before t" is satisfied by a window that reaches into the future as long as it is
+    narrow enough overall. Equality against a two-sided mask is not.
     """
     name, feats, imps = built
+    window_h = pop_window_for(name)
     times = _click_times(name)
     when = dict(zip(imps["impression_id"], imps["timestamp"]))
 
@@ -60,22 +100,40 @@ def test_causal_popularity_counts_only_the_strict_past(built):
         imps["impression_id"].sample(min(300, imps.height), seed=13).to_list()))
     assert sample.height > 0, f"{name}: nothing sampled, the check would be vacuous"
 
-    compared = 0
+    compared = bounded = 0
     for row in sample.iter_rows(named=True):
         t = np.datetime64(when[row["impression_id"]])
         arr = times.get(row["candidate"])
-        expected = 0 if arr is None else int((arr < t).sum())
+        expected = 0 if arr is None else _count_in_window(arr, t, window_h)
         assert row["pop_causal"] == expected, (
             f"{name}: {row['candidate']} at {t} has pop_causal={row['pop_causal']}, "
-            f"expected {expected} clicks strictly before t"
+            f"expected {expected} clicks in "
+            f"{'the whole past' if window_h is None else f'the {window_h} h before t'}"
         )
         compared += 1
+        if arr is not None and expected != int((arr < t).sum()):
+            bounded += 1
     assert compared >= 100, f"{name}: only {compared} rows compared, too few to trust"
+
+    # Non-vacuity for the window specifically. If no sampled row has a click older than the
+    # window, the windowed and unbounded counts agree everywhere and this test would pass
+    # just as happily against a build that ignored POP_WINDOW_H.
+    if window_h is not None:
+        assert bounded > 0, (
+            f"{name}: a {window_h} h window is configured but no sampled row had a click "
+            f"outside it, so this comparison never tested the window"
+        )
 
 
 def test_no_click_at_or_after_the_impression_is_counted(built):
-    """The boundary itself: a click exactly at t must not count, nor anything after it."""
+    """The boundary itself: a click exactly at t must not count, nor anything after it.
+
+    Restricted to rows that have something to exclude. A row whose candidate was never
+    clicked at or after t is consistent with any upper bound at all, so counting it would
+    inflate the sample without testing anything.
+    """
     name, feats, imps = built
+    window_h = pop_window_for(name)
     times = _click_times(name)
     when = dict(zip(imps["impression_id"], imps["timestamp"]))
 
@@ -89,7 +147,7 @@ def test_no_click_at_or_after_the_impression_is_counted(built):
         if at_or_after == 0:
             continue                       # nothing to exclude, so this row proves nothing
         checked += 1
-        if row["pop_causal"] != int((arr < t).sum()):
+        if row["pop_causal"] != _count_in_window(arr, t, window_h):
             violations += 1
     assert checked > 0, (
         f"{name}: no row had any click at or after its impression, so this assertion "
@@ -98,13 +156,20 @@ def test_no_click_at_or_after_the_impression_is_counted(built):
     assert violations == 0, f"{name}: {violations} of {checked} rows counted a future click"
 
 
-def test_the_check_would_catch_an_injected_future_click(built):
+def test_popularity_check_would_catch_an_injected_future_click(built):
     """Non-vacuity: poison the data and require the comparison to fail.
 
     Without this, all the assertions above could be passing because the comparison is
     inert rather than because the feature is correct.
+
+    Named apart from the engagement injection test at the bottom of this file. They were
+    identical until 2026-09-16, and since a module is a namespace, the second definition
+    replaced the first: this test was collected zero times over its whole life while the
+    suite reported green. That is the third vacuous leakage check on this project and the
+    reason every assertion here carries its own non-vacuity guard.
     """
     name, feats, imps = built
+    window_h = pop_window_for(name)
     times = _click_times(name)
     when = dict(zip(imps["impression_id"], imps["timestamp"]))
 
@@ -118,10 +183,12 @@ def test_the_check_would_catch_an_injected_future_click(built):
 
     t = np.datetime64(when[row["impression_id"]])
     arr = times[row["candidate"]]
-    honest = int((arr < t).sum())
-    # One click one day in the future, which a leaky implementation would include.
-    poisoned = np.sort(np.append(arr, t + np.timedelta64(1, "D")))
-    leaky = int((poisoned <= t + np.timedelta64(2, "D")).sum())
+    honest = _count_in_window(arr, t, window_h)
+    # One click one hour into the future. Inside any window we might configure, so it tests
+    # the upper bound and not the lower one: a leaky implementation includes it whatever w is.
+    future = t + np.timedelta64(1, "h")
+    poisoned = np.sort(np.append(arr, future))
+    leaky = _count_in_window(poisoned, future + np.timedelta64(1, "s"), window_h)
     assert leaky > honest, "injection did not change the count, so the test is inert"
     assert row["pop_causal"] == honest, f"{name}: feature matches the leaky count, not the honest one"
 
@@ -201,7 +268,7 @@ def test_engagement_history_is_strictly_before_its_impressions(engagement):
         )
 
 
-def test_the_check_would_catch_an_injected_future_click(engagement):
+def test_engagement_check_would_catch_an_injected_future_click(engagement):
     """Same comparison against a deliberately poisoned history, which must fail.
 
     Verified by injection rather than trusted: three of this project's four vacuous tests

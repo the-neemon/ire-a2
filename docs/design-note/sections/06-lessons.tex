@@ -33,12 +33,22 @@ stemming stayed flat within $\pm$0.0004 at intervals tight enough to exclude the
 recall gain Assignment~1 had claimed. We now re-run any interval that spans zero at larger scale
 before recording a verdict.
 
-\textbf{A check must test the artifact, not a proxy for it.} We found five checks that passed
-without checking anything: a \mind{} leakage test that filtered every row away (a null list is not
-an empty list), an anti-gaming guard that scanned zero files after a directory move, an install
-check that trusted an exit code while the import was broken, a job monitor that matched its own
-command line, and leakage tests that never looked at the engagement arrays the model reads. Every
-test is now required to fail when a violation is injected before it counts.
+\textbf{A check must test the artifact, not a proxy for it.} We found \textbf{six} checks that
+passed without checking anything: a \mind{} leakage test that filtered every row away (a null list
+is not an empty list), an anti-gaming guard that scanned zero files after a directory move, an
+install check that trusted an exit code while the import was broken, a job monitor that matched its
+own command line, leakage tests that never looked at the engagement arrays the model reads, and an
+injection test \emph{deleted by its own name}, two test functions in one file sharing a name so the
+second replaced the first and the popularity injection check ran zero times from the day it was
+written. Reading the file cannot catch that; counting collected tests can, and 12 collected against
+15 written is what exposed it. Every test must now fail on an injected violation before it counts,
+and how many actually run is part of what we check.
+
+\textbf{A guard that fires on prose teaches you to delete the prose.} The same anti-gaming test
+searched source as raw text and failed on \feat{src/rerank/q9.py}, whose only mention of the
+lifetime columns is a comment recording that \mind{} has none. The obvious fix, allow-listing the
+file, would have passed the suite while removing the guard from a module that never read them. It
+now parses the code, so a comment costs nothing and \feat{pl.col("total_inviews")} still fails.
 
 \section{Limitations and open questions}
 \label{sec:limits}
@@ -61,10 +71,8 @@ test is now required to fail when a violation is injected before it counts.
   but it means our strongest claims are about \eb{}.
 \item \textbf{One stage-one improvement is unshipped.} Title-only BM25 documents gain ranking AUC on
   both datasets but cost \eb{} val recall@200 ($-$0.0024), which is exactly what stage two consumes.
-\item \textbf{Two leakage tests are stale against the shipped configuration.} They recompute
-  popularity over all past clicks, while the shipped feature counts only the last 6 hours, so they
-  fail on a legitimately smaller number. Neither can distinguish a narrower window from a leak. We
-  re-verified the boundary independently instead, comparing 4,334 rows against a recount by a
-  different code path, 4,225 of them on articles with clicks at or after the impression: zero
-  disagreements, and zero rows counting anything at or after $t$.
+\item \textbf{The static anti-gaming scan has a blind spot we have not closed.} It inspects
+  parsed code rather than raw text, so it sees \feat{pl.col("total_inviews")} but not a column name
+  assembled at runtime from parts. Closing it needs a runtime check on what the scorer actually
+  reads, which we did not build.
 \end{itemize}

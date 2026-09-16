@@ -10,6 +10,7 @@ what every downstream stage will therefore read.
 Datasets that have not been built are skipped, so this is runnable after a partial pipeline.
 """
 
+import ast
 from datetime import datetime
 from pathlib import Path
 
@@ -166,6 +167,55 @@ def test_every_id_resolves_and_none_is_empty(dataset):
 
 # ------------------------------------------------------------- serving availability
 
+FORBIDDEN_COLUMNS = ("total_inviews", "total_pageviews", "total_read_time")
+
+
+def _forbidden_reads(path: Path) -> list[str]:
+    """Serving-unavailable columns this module actually reads, prose excluded.
+
+    Parsed with `ast` rather than searched as text. The text version flagged
+    `src/rerank/q9.py`, whose only mention of these columns is a comment recording that
+    MIND has none of them, so the suite failed over a sentence that reads no data. That is
+    not a harmless false positive: a leakage test that fires on documentation teaches us to
+    stop writing the documentation, or worse, to add the module to the allow-list and lose
+    the check on it entirely.
+
+    A column counts as read when it appears as an identifier or as a string literal in
+    executable code, which is how polars names a column (`pl.col("total_inviews")`).
+    Docstrings are skipped because a docstring is evaluated and discarded, never used to
+    select anything. The same blind spot as before remains: a name assembled at runtime,
+    say `"total_" + kind`, is invisible to any static scan. That is a deliberate limit, not
+    an oversight, and the runtime boundary tests in test_features_leakage.py are what cover
+    the case where a column is read by some route this cannot see.
+    """
+    tree = ast.parse(path.read_text(), filename=str(path))
+
+    docstrings = set()
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) \
+                and body and isinstance(body[0], ast.Expr) \
+                and isinstance(body[0].value, ast.Constant) \
+                and isinstance(body[0].value.value, str):
+            docstrings.add(id(body[0].value))
+
+    tokens = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if id(node) not in docstrings:
+                tokens.append(node.value)
+        elif isinstance(node, ast.Name):
+            tokens.append(node.id)
+        elif isinstance(node, ast.Attribute):
+            tokens.append(node.attr)
+        elif isinstance(node, ast.arg):
+            tokens.append(node.arg)
+        elif isinstance(node, ast.alias):
+            tokens += [node.name, node.asname or ""]
+
+    return [col for col in FORBIDDEN_COLUMNS if any(col in tok for tok in tokens)]
+
+
 def test_no_scorer_reads_a_serving_unavailable_column():
     """The lifetime aggregates must not be referenced by any shipped scorer.
 
@@ -173,13 +223,12 @@ def test_no_scorer_reads_a_serving_unavailable_column():
     (`eval/run.py`, deliberately). Any other module touching them would mean a number
     reported as servable was not.
     """
-    forbidden = ("total_inviews", "total_pageviews", "total_read_time")
     # Modules allowed to name these, because quantifying what they would buy is the point
     # of the Q9 report. Everything else touching them means a number reported as servable
     # was not.
     allowed = {"src/eval/run.py", "src/features/leaky.py"}
 
-    # A grep-style test rather than a runtime one, deliberately. Leakage of this kind is a
+    # A static test rather than a runtime one, deliberately. Leakage of this kind is a
     # question about which code is ALLOWED to touch a column, and that is a property of the
     # source, not of any single execution a runtime check might happen to miss.
     #
@@ -198,8 +247,7 @@ def test_no_scorer_reads_a_serving_unavailable_column():
             scanned.append(rel)
             if rel in allowed:
                 continue
-            text = path.read_text()
-            offenders += [f"{rel}: {col}" for col in forbidden if col in text]
+            offenders += [f"{rel}: {col}" for col in _forbidden_reads(path)]
 
     assert len(scanned) >= 10, (
         f"only {len(scanned)} source files scanned, so this test would pass without "
@@ -208,4 +256,34 @@ def test_no_scorer_reads_a_serving_unavailable_column():
     assert not offenders, (
         "serving-unavailable columns read outside " + ", ".join(sorted(allowed)) + ": "
         + "; ".join(offenders)
+    )
+
+
+def test_the_allow_list_scan_reads_code_and_not_prose(tmp_path):
+    """Non-vacuity, both ways: it must flag a real read and must not flag a comment.
+
+    Needed because the fix that made this scan ignore prose could just as easily have made
+    it ignore everything. One direction alone proves nothing: a scanner that always returns
+    nothing passes the second assertion, and one that always returns everything passes the
+    first.
+    """
+    reads = tmp_path / "reads.py"
+    reads.write_text(
+        "import polars as pl\n"
+        "def score(df):\n"
+        "    return df.select(pl.col('total_inviews'))\n"
+    )
+    assert _forbidden_reads(reads) == ["total_inviews"], (
+        "the scan missed a column read in ordinary scoring code"
+    )
+
+    explains = tmp_path / "explains.py"
+    explains.write_text(
+        '"""total_pageviews cannot be computed at serving time, so we do not use it."""\n'
+        "# total_read_time is a lifetime aggregate and is excluded for the same reason.\n"
+        "def score(df):\n"
+        "    return df\n"
+    )
+    assert _forbidden_reads(explains) == [], (
+        "the scan flagged a docstring and a comment, which read no column at all"
     )

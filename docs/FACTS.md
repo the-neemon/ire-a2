@@ -1371,3 +1371,112 @@ falls 144.6 -> 17.7 tokens between full corpus and a tenth, because a subsampled
 contributes no history title. So the `tokenise` and `bm25` growth factors are upper bounds on the
 corpus effect. `ann` is unaffected, which is why the verdict rests on it.
 
+
+## 20. The three test failures, fixed, and a sixth vacuous check (A2)
+
+Date 2026-09-16. Section 19.5 reported `3 failed, 21 passed, 7 skipped` and left the repair to the
+owning lane. Repaired here instead, by agreement. `make test` now gives **29 passed, 6 skipped, 0
+failed**. Command: `.venv/bin/python -m pytest tests/ -q`.
+
+The passing count rises by more than the three repairs because fixing them collected four tests
+that were not running before.
+
+### 20.1 The two window tests: fixed, and by a stronger assertion than 19.5 proposed
+
+`tests/test_features_leakage.py` now reads `pop_window_for(name)` from `build.py` and recomputes
+`pop_causal` against a **two-sided** boolean mask, `(arr >= t - w) & (arr < t)`, still a different
+code path from the builder's `searchsorted`. Section 19.5 suggested the windowed recount plus a
+one-sided "never exceeds the unbounded count" assertion. The one-sided half was dropped because it
+is weaker than it looks: a window that reached forward to `t + 1 h` would still sit below the
+unbounded count whenever the window is narrow, so that assertion passes on a leak. Equality
+against a two-sided mask does not.
+
+`_count_in_window` is shared by the two tests and by the injection test, so the windowed
+definition is written once.
+
+**Non-vacuity, verified by mutation rather than argued.** Both tests must fail when the window
+changes without a rebuild, and both do:
+
+| mutation to `POP_WINDOW_H["ebnerd_small"]` | result |
+|---|---|
+| `6.0` (shipped, matches the feature store) | 10 passed, 5 skipped |
+| `12.0` | **2 failed** (both window tests) |
+| `None`, the expectation the old tests encoded | **2 failed** (both window tests) |
+
+`build.py` was restored to `6.0` afterwards and `git diff` on it is empty. A third guard is now
+inside the test itself: if no sampled row has a click older than the window, it fails rather than
+passes, because the windowed and unbounded counts would agree everywhere and the comparison would
+not have tested the window at all.
+
+### 20.2 The sixth vacuous check: a test deleted by its own name
+
+`test_the_check_would_catch_an_injected_future_click` was defined **twice** in
+`tests/test_features_leakage.py`, at line 101 for `pop_causal` and at line 204 for the engagement
+history. A module is a namespace, so the second definition replaced the first and pytest collected
+only the engagement version. **The popularity injection test ran zero times between the day it was
+written and 2026-09-16**, while the suite reported green.
+
+Confirmed by collection count, not by reading: `pytest --collect-only -q` reported 12 tests for a
+file containing 15 test functions, with one
+`test_the_check_would_catch_an_injected_future_click[...]` per dataset rather than two.
+
+This is the sixth check on this project that passed without checking anything, and the first whose
+cause is a language rule rather than a data shape. The other five are in section 6. Renamed to
+`test_popularity_check_would_catch_an_injected_future_click` and
+`test_engagement_check_would_catch_an_injected_future_click`; both now collect and pass.
+
+The injected click was also moved from `t + 1 day` to `t + 1 h`, inside any window we might
+configure, so the injection tests the upper bound rather than accidentally testing the lower one.
+
+### 20.3 The allow-list test was flagging a comment, so it now parses code
+
+19.5 proposed adding `src/rerank/q9.py` to the allow-list of
+`test_no_scorer_reads_a_serving_unavailable_column`. **That diagnosis was wrong in a way worth
+recording.** `q9.py` does not read the lifetime columns at all. It reads `LEAKY_FEATURES`
+(`leak_inviews`, `leak_pageviews`, `leak_readtime`) from a parquet that `src/features/leaky.py`
+built. Its only mention of `total_inviews`, `total_pageviews` and `total_read_time` is a **comment
+on lines 39 to 40** recording that MIND has none of them:
+
+```
+# MIND has no lifetime aggregates at all: total_inviews, total_pageviews and
+# total_read_time are 100% null across all 65,238 articles, so the leaky arm cannot be
+```
+
+The test searched the raw file text, so prose counted as use. Adding `q9.py` to the allow-list
+would have passed the suite while **removing the guard from a module that never needed it**, and
+would have taught us that documenting a column is what breaks the build.
+
+The scan now parses the file with `ast` and collects identifiers plus string literals from
+executable code, skipping comments and docstrings. A column counts as read when it appears as a
+name or as a string literal, which is how polars selects one (`pl.col("total_inviews")`). Nothing
+was added to the allow-list, which still holds exactly `src/eval/run.py` and
+`src/features/leaky.py`.
+
+**Known limit, stated rather than discovered later:** a name assembled at runtime, such as
+`"total_" + kind`, is invisible to this or any static scan. The runtime boundary tests are what
+cover that route.
+
+**Non-vacuity is now a permanent test, in both directions.**
+`test_the_allow_list_scan_reads_code_and_not_prose` writes two throwaway modules and asserts the
+scan flags the one that calls `pl.col('total_inviews')` and does not flag the one that only names
+the columns in a docstring and a comment. One direction alone proves nothing: a scanner returning
+nothing always passes the second assertion, and one returning everything always passes the first.
+
+### 20.4 Test counts before and after
+
+Two "before" columns, because 19.5's counts were taken before the MIND feature store finished
+rebuilding and a stale number in a ledger is worse than a wordy one. The second column is the run
+taken immediately before touching the tests, on the same store as the "after".
+
+| | 19.5, 2026-09-15 | before, same store | after |
+|---|---|---|---|
+| collected, whole suite | | 31 | **35** |
+| collected in `tests/test_features_leakage.py` | | 12 | **15** |
+| passed | 21 | 23 | **29** |
+| failed | 3 | 3 | **0** |
+| skipped | 7 | 5 | 6 |
+
+The four newly collected tests are the un-shadowed popularity injection test on three datasets
+(two run, `ebnerd_demo` skips) and the new allow-list self-check. Skips are unchanged in kind:
+`ebnerd_demo` has no feature store built, MIND has no engagement history and no per-item history
+timestamps.
