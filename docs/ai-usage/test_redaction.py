@@ -26,9 +26,13 @@ MUST_REMOVE = [
     "grep for '/home9/' as a bare pattern",
     "mail me at somebody@gmail.com",
     "we compared against example-peer-system, which scored higher",
+    # The name written as a regex, which is how it leaked past a strict matcher seven times.
+    "PEER = re.compile(r'example-?peer-?system', re.I)",
+    "grep -c 'examplepeersystem' notes.md",
 ]
 FORBIDDEN = [r"\.ac\.in", r"/home\d", r"node\d\d", r"id_ed25519", r"\.ssh/", r"@gmail",
-             r"example-peer-system"]
+             # Loose: the name is legible however the punctuation between its words is written.
+             r"example[^a-z0-9]{0,3}peer[^a-z0-9]{0,3}system"]
 
 MUST_KEEP = [
     "a normal line about BM25 and FAISS with no secrets",

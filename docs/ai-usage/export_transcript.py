@@ -32,8 +32,20 @@ REDACTIONS = [
 #
 # The committed transcript was produced with the real term supplied this way. Re-exporting without
 # it reproduces everything except the peer-line redaction, so always pass it.
+#
+# Each term is matched loosely: its alphanumeric runs must appear in order, separated by up to
+# three non-alphanumeric characters. A strict match missed the name written as a regex, which is
+# how it survived seven times in one transcript. "the-name", "thename", "the-?name" and
+# "the\\-name" all have to be caught, because a reader sees the name in every one of them.
 _terms = [x.strip() for x in os.environ.get('PEER_TERMS', '').split(',') if x.strip()]
-PEER = re.compile('|'.join(re.escape(x) for x in _terms), re.I) if _terms else None
+
+
+def _loose(term: str) -> str:
+    runs = [r for r in re.split(r'[^A-Za-z0-9]+', term) if r]
+    return r'[^A-Za-z0-9]{0,3}'.join(re.escape(r) for r in runs)
+
+
+PEER = re.compile('|'.join(_loose(x) for x in _terms), re.I) if _terms else None
 PEER_NOTE = ('[REDACTED LINE: referred to a classmate\'s Assignment-1 system. Dropped rather '
              'than renamed, because it is a third party\'s work and none of it is ours to publish.]')
 

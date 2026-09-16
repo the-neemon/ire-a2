@@ -10,14 +10,18 @@ back to its source.
 
 | file | owner | dates | prompts | replies | tool calls |
 |---|---|---|---|---|---|
-| [transcript-yash-8940d1d4.md](transcript-yash-8940d1d4.md) | Yash | 09-04 to 09-16 | 14 | 251 | 619 |
+| [transcript-yash-8940d1d4.md](transcript-yash-8940d1d4.md) | Yash | 09-04 to 09-16 | 15 | 271 | 649 |
 | [transcript-naman-5f1e2a9d.md](transcript-naman-5f1e2a9d.md) | Naman | 09-08 to 09-16 | 108 | 432 | 701 |
 | [transcript-naman-6a2b339e.md](transcript-naman-6a2b339e.md) | Naman | 09-03 to 09-16 | 54 | 306 | 417 |
 
 Session `6a2b339e` is the earliest and ran across the first week: the A1 port and its three path
 bugs, the Q1 feature builder, the Q2 re-ranker and its ablation grid, Q9, the vacuous-test audit,
-and the cluster environment work, before handing off. Totals across all three: **176 prompts,
-989 assistant replies, 1,737 tool calls.**
+and the cluster environment work, before handing off. Totals across all three: **177 prompts,
+1,009 assistant replies, 1,767 tool calls.**
+
+Each export is a snapshot: a session that is still running gains turns, and `8940d1d4` was
+re-exported after the others and so carries more than it did when the first two were written.
+The header of each file records its own counts and the date it was produced.
 
 | file | what it is |
 |---|---|
@@ -62,8 +66,9 @@ git log --format='%H %an' | while read h a; do
 done | sort | uniq -c
 ```
 
-Across 61 commits: **38 carry an AI trailer, 23 do not.** By area, counting commits that touched
-each path:
+As of commit `51589aa`, across 62 commits: **39 carry an AI trailer, 23 do not.** Every further
+commit moves these numbers, which is why the command above is given: it is the figure that is
+authoritative, not this snapshot. By area, counting commits that touched each path:
 
 | area | AI-assisted | no trailer |
 |---|---|---|
@@ -74,6 +79,7 @@ each path:
 | `src/rerank/` | 1 | 5 |
 | `src/models/` | 0 | 2 |
 | `src/baseline/` | 1 | 0 |
+| `src/submission/` | 3 | 0 |
 | `tests/` | 3 | 3 |
 | `docs/design-note/` | 3 | 0 |
 | `docs/FACTS.md` | 18 | 6 |
@@ -107,19 +113,39 @@ before it was trusted.
 The transcript is redacted before it enters this repository. Three categories, all required by our
 own working rules:
 
-| redaction | yash-8940d1d4 | naman-5f1e2a9d | naman-6a2b339e | why |
+Counts are **lines containing the marker**, which is what `grep -c` returns. Occurrences are
+higher where a line was redacted more than once: `[GPU-NODE]` appears 33 times across those 19
+lines in each of Naman's sessions, because a single Slurm command often names several nodes. Use
+`grep -o '\[GPU-NODE\]' <file> | wc -l` for occurrences.
+
+| redaction, in lines | yash-8940d1d4 | naman-5f1e2a9d | naman-6a2b339e | why |
 |---|---|---|---|---|
-| `[REDACTED LINE: ...]` | 12 | 6 | 7 | the line referred to a **classmate's** Assignment-1 system, discussed in our private notes as a comparison. It is a third party's work and none of it is ours to publish. |
-| `/[CLUSTER-HOME]` | 7 | 43 | 29 | home paths on shared university infrastructure |
-| `[SSH-CREDENTIAL]` | 2 | 2 | 3 | key paths |
+| `[REDACTED LINE: ...]` | 26 | 6 | 7 | the line referred to a **classmate's** Assignment-1 system, discussed in our private notes as a comparison. It is a third party's work and none of it is ours to publish. |
+| `/[CLUSTER-HOME]` | 3 | 43 | 29 | home paths on shared university infrastructure |
+| `[SSH-CREDENTIAL]` | 1 | 2 | 3 | key paths |
 | `[CLUSTER-HOST]` | 0 | 5 | 1 | hostname |
 | `[CLUSTER-ACCOUNT]` | 0 | 0 | 1 | account |
 | `[GPU-NODE]` | 0 | 19 | 19 | compute node names |
 | `[EMAIL]` | 1 | 0 | 1 | personal addresses |
 
 Counts differ by session because the sessions did different work: `5f1e2a9d` and `6a2b339e` drove
-the cluster heavily, so they carry most of the path and node redactions, while `8940d1d4` did more
-of the comparison against our private notes and carries most of the peer-line drops.
+the cluster heavily, so they carry nearly all the path and node redactions, while `8940d1d4` did
+the comparison against our private notes and the redaction work itself, and carries most of the
+peer-line drops.
+
+### The peer matcher was too strict, and the term survived seven times
+
+Worth recording, because it is the same failure shape as the vacuous tests in `FACTS.md` section 6:
+a check that looked right and did not fire. The matcher was a literal `re.escape` of the term, so
+it caught the name but **not the name written as a regex**. Seven lines of `8940d1d4` contained the
+pattern in source and in grep commands, where the two words are separated by `-?` rather than `-`.
+A strict matcher sees a different string; a human reads the name perfectly well.
+
+The matcher now requires only that the term's alphanumeric runs appear in order, separated by up to
+three non-alphanumeric characters, so `the-name`, `thename`, `the-?name` and `the\-name` all match.
+`test_redaction.py` gained two fixtures in exactly that shape, one a line of Python source and one
+a grep command, so the strict form cannot come back unnoticed. Naman's two transcripts were checked
+against the loosened pattern and were already clean; only `8940d1d4` needed re-exporting.
 
 Redaction is applied **per line**, so one offending sentence costs one line rather than a whole
 message. Prompts are otherwise reproduced in full and are never truncated.
@@ -149,7 +175,8 @@ The peer system's name cannot be generalised, because it is just a name, so it i
 at all**. It is supplied at export time instead:
 
 ```bash
-PEER_TERMS='<term>' python3 docs/ai-usage/export_transcript.py <session>.jsonl docs/ai-usage/transcript-yash.md
+OWNER='<name>' PEER_TERMS='<term>' python3 docs/ai-usage/export_transcript.py \
+    <session>.jsonl docs/ai-usage/transcript-<owner>-<session>.md
 ```
 
 Re-exporting without `PEER_TERMS` reproduces everything except the peer-line redaction, so it must
@@ -160,8 +187,9 @@ so nobody has to wonder:
 
 | file | line | the string | what it actually is |
 |---|---|---|---|
-| `transcript-yash-8940d1d4.md` | 7088 | a hostname-shaped pattern | the argument to a verification loop that proves nothing leaked |
-| `transcript-yash-8940d1d4.md` | 7159 | `\.ssh/` and `@gmail` | the literal regex patterns in the audit command, not a key path and not an address |
+| `transcript-yash-8940d1d4.md` | 7159, 7307, 7313 | `\.ssh/` and `@gmail` | the literal regex patterns in the audit commands, not a key path and not an address |
+| `transcript-yash-8940d1d4.md` | 7397, 7399, 7440 | `.ac.in` | prose describing the audit, in replies written while doing it |
+| `transcript-yash-8940d1d4.md` | 7628 | the `FORBIDDEN` list | the test file's own list of patterns, quoted in the transcript that records writing it |
 | `transcript-naman-6a2b339e.md` | 7076 | `.ac.in`, `/home\d`, `id_ed25519`, `gnode\d` | a prompt listing the patterns to re-scan for after exporting |
 
 All three are **search patterns inside the audit of the redaction itself**. The redactor's host
@@ -171,10 +199,13 @@ happened.
 
 ## Tool results are not included
 
-The export carries prompts, replies, reasoning and tool **calls**. It omits tool **results**: 3.8 MB
-of command output, file contents and test logs. Every artifact they produced is tracked in this
-repository already, so including them would duplicate the repo inside a log of how the repo was
-made. Long tool arguments are truncated with the omitted character count shown.
+The export carries prompts, replies, reasoning and tool **calls**. It omits tool **results**:
+command output, file contents and test logs, which are the bulk of every session. In Yash's
+session, the one whose raw log is on the machine this was written on, they are 3.8 MB against
+0.09 MB of prompts and replies; the other two were exported on Naman's machine and are the same
+shape. Every artifact those results produced is tracked in this repository already, so including
+them would duplicate the repo inside a log of how the repo was made. Long tool arguments are
+truncated with the omitted character count shown.
 
 ## Regenerating
 

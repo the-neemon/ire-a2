@@ -1,12 +1,12 @@
 # Session transcript: Yash More
 
-Session `8940d1d4`.
+Session `c6da82c0`.
 
 Exported 2026-09-16 from the Claude Code session log by `docs/ai-usage/export_transcript.py`.
 
-- **14** human prompts, reproduced in full and verbatim
-- **251** assistant replies and **26** reasoning blocks
-- **619** tool calls, by name and arguments
+- **15** human prompts, reproduced in full and verbatim
+- **271** assistant replies and **26** reasoning blocks
+- **649** tool calls, by name and arguments
 - **1** context compactions, where the runtime summarised the session so far because the context window filled
 
 Turns the harness injected into the user role are excluded from the prompt count: an IDE notice carrying no typed text, and task notifications. They were not written by a human and counting them would overstate the prompts.
@@ -17,7 +17,7 @@ Redactions are marked inline and are explained in [README.md](README.md).
 
 | tool | calls |
 |---|---|
-| `Bash` | 552 |
+| `Bash` | 582 |
 | `Write` | 24 |
 | `Read` | 22 |
 | `Edit` | 18 |
@@ -7072,7 +7072,7 @@ command: cd /tmp/claude-1000/-home-yash-more-Downloads-31-ire-a1c2-ire-a2-privat
 from pathlib import Path
 p = Path("export.py"); t = p.read_text()
 
-t = t.replace('''PEER = re.compile(r'vub-?news', re.I)
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 PEER_NOTE = ('[REDACTED: this passage discussed a classmate\\'s Assignment-1 system. '
              'Removed in full rather than renam
 ... [truncated, 3,929 more characters]
@@ -7085,7 +7085,7 @@ Now the verification that matters: re-scanning the output for every forbidden pa
 
 **Bash**
 description: Verify zero forbidden patterns survive
-command: F=docs/ai-usage/transcript-yash.md && echo "pattern        hits" && for p in "ada\.iiit" "/[CLUSTER-HOME]/" "gnode[0-9]" "vub-?news" "[SSH-CREDENTIAL]" "yash\.more" "naman\.s" "\.ssh/" "@gmail" ; do printf "%-14s %s\n" "$p" "$(grep -ocEi "$p" "$F" 2>/dev/null || echo 0)"; done; echo "=== redaction markers present ==="; grep -oE "\[(SSH-CREDENTIAL|CLUSTER-HOST|CLUSTER-HOME|CLUSTER-ACCOUNT|GPU-NODE|CLUSTER-USER|EM
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 ... [truncated, 86 more characters]
 
 ### Assistant  <sub>2026-09-16 08:47:23</sub>
@@ -7113,7 +7113,7 @@ The `/[CLUSTER-HOME]/` and key paths all sat on the same recurring constraints l
 
 **Bash**
 description: Prove the substitution rules fire
-command: cd /tmp/claude-1000/-home-yash-more-Downloads-31-ire-a1c2-ire-a2-private/c6da82c0-5bc3-4dbc-83f6-a32638ee3f81/scratchpad && echo "=== do the /[CLUSTER-HOME] and key hits co-occur with the peer name? ===" && grep -cE "/[CLUSTER-HOME]*vub-?news|vub-?news.*/[CLUSTER-HOME]/" UNREDACTED.md && grep -m1 -oE ".{0,80}/[CLUSTER-HOME]{0,80}" UNREDACTED.md && echo && echo "=== exercise the substitution rules directly ===" && python3 -c "
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 im
 ... [truncated, 701 more characters]
 
@@ -7125,7 +7125,7 @@ im
 
 **Bash**
 description: Find the non-co-occurring cluster path line
-command: cd /tmp/claude-1000/-home-yash-more-Downloads-31-ire-a1c2-ire-a2-private/c6da82c0-5bc3-4dbc-83f6-a32638ee3f81/scratchpad && grep -n "/[CLUSTER-HOME]/" UNREDACTED.md | grep -viE "vub-?news" | cut -c1-200
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 
 ### Assistant  <sub>2026-09-16 08:48:22</sub>
 
@@ -7206,7 +7206,7 @@ against human-written code. This directory holds all three.
 
 **Bash**
 description: Run the redaction test and final scan
-command: python3 docs/ai-usage/test_redaction.py | tail -2 && echo "=== final private-material scan across ALL new files ===" && for p in "ada\.iiit" "/[CLUSTER-HOME]" "gnode[0-9]" "vub-?news" "[SSH-CREDENTIAL]"; do printf "%-14s %s\n" "$p" "$(grep -rocEi "$p" docs/ai-usage/ README.md .gitignore 2>/dev/null | grep -v ':0$' | tr '\n' ' ')"; done
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 
 ### Assistant  <sub>2026-09-16 08:50:49</sub>
 
@@ -7273,7 +7273,7 @@ command: python3 - <<'PYEOF'
 from pathlib import Path
 p = Path("docs/ai-usage/export_transcript.py"); t = p.read_text()
 
-old = """PEER = re.compile(r'vub-?news', re.I)"""
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 new = '''# The peer system's name is itself a classmate's identifier, so it is not hardcoded here either:
 # committing it would put the name in the graded repo, which is what the rule forbids. Supply it
 # at export time, comma separated:
@@ -7299,4 +7299,341 @@ any real hostname, username or node, since a test file lives
 description: Re-export and scan everything
 [REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
 ... [truncated, 310 more characters]
+
+#### Tool  <sub>2026-09-16 08:52:11</sub>
+
+**Bash**
+description: Check remaining strings and redaction marker counts
+command: for p in "\.ssh/" "@gmail" "REDACTED LINE" "CLUSTER-HOME" "SSH-CREDENTIAL" "GPU-NODE" "CLUSTER-ACCOUNT" "CLUSTER-HOST" "EMAIL\]"; do printf "%-18s %s\n" "$p" "$(grep -ocE "$p" docs/ai-usage/transcript-yash.md)"; done; ls -la docs/ai-usage/
+
+#### Tool  <sub>2026-09-16 08:52:18</sub>
+
+**Bash**
+description: Inspect remaining occurrences
+command: grep -n "\.ssh/\|@gmail" docs/ai-usage/transcript-yash.md | cut -c1-130
+
+### Assistant  <sub>2026-09-16 08:52:24</sub>
+
+Both remaining hits are grep patterns inside my own verification commands. Updating the log with the final counts and the externalised peer term.
+
+#### Tool  <sub>2026-09-16 08:52:42</sub>
+
+**Bash**
+description: Update the AI usage log
+command: python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("docs/ai-usage/README.md"); t = p.read_text()
+
+t = t.replace(
+ "| [transcript-yash.md](transcript-yash.md) | Yash's full session: 14 prompts verbatim, 246 assistant replies, 608 tool calls |",
+ "| [transcript-yash.md](transcript-yash.md) | Yash's full session: 14 prompts verbatim, 251 assistant replies, 619 tool calls |")
+
+old = """| redaction
+... [truncated, 4,207 more characters]
+
+#### Tool  <sub>2026-09-16 08:52:54</sub>
+
+**Bash**
+description: Run tests and scan the staged diff
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
+... [truncated, 2 more characters]
+
+### Assistant  <sub>2026-09-16 08:53:45</sub>
+
+One real path prefix left, in the exporter's own docstring. Fixing.
+
+#### Tool  <sub>2026-09-16 08:53:47</sub>
+
+**Bash**
+description: Generalise the docstring and rescan
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
+... [truncated, 31 more characters]
+
+#### Tool  <sub>2026-09-16 08:54:07</sub>
+
+**Bash**
+description: Commit the Q7 packaging work
+command: git commit -q -F - <<'EOF' && git log --oneline -1
+Q7 packaging: accurate README, AI usage log, and untrack the assignment brief
+
+The README status table claimed Q3 and Q6 were "not started" and Q1, Q2 were
+"in progress". All four are done, and the README is the first thing a grader
+opens, so it was telling them two deliverables were never attempted. Replaced
+with the real state, one row per requi
+... [truncated, 2,171 more characters]
+
+#### Tool  <sub>2026-09-16 08:54:19</sub>
+
+**Bash**
+description: Push and confirm A2.pdf state
+command: git fetch -q origin && git log --oneline HEAD..origin/main | head && git push -q origin main && echo PUSHED && git ls-files | grep -ci "A2.pdf"; ls A2.pdf && echo "(still on disk, untracked)"
+
+### Assistant  <sub>2026-09-16 08:54:41</sub>
+
+Network hiccup. Retrying the push.
+
+#### Tool  <sub>2026-09-16 08:54:43</sub>
+
+**Bash**
+description: Retry the push
+command: for i in 1 2 3; do if git push origin main 2>&1 | tail -2; then break; fi; sleep 3; done; echo "--- remote state ---"; git log --oneline -1 origin/main 2>/dev/null; git status -sb | head -1
+
+#### Tool  <sub>2026-09-16 08:55:11</sub>
+
+**Bash**
+description: Confirm final A2.pdf and repo state
+command: echo "A2.pdf tracked? $(git ls-files A2.pdf | wc -l) (0 = no)" && echo "A2.pdf on disk? $(test -f A2.pdf && echo yes)" && echo "A2.pdf ignored? $(git check-ignore A2.pdf)" && git status --short && echo "(clean above = nothing uncommitted)"
+
+### Assistant  <sub>2026-09-16 08:55:30</sub>
+
+All three done and pushed as `8d023de`.
+
+**README.** The status table now reflects reality: Q1 through Q6 and Q9 marked done with the measured result and a link to the document behind each, plus Q7 and Q8 rows that did not exist. It previously said Q3 and Q6 were "not started", which was the single most damaging thing in the repo, since that is the first file a grader opens. I also added a **Prediction files** section recording your decision: they stay gitignored as large files under Q8's rule, delivered through Moodle, with the rebuild commands and the reported-versus-uploaded gap stated so the better number never stands in for the other.
+
+**A2.pdf** is untracked and gitignored, still on disk. `CLAUDE.md` lists it as a source of truth, so deleting it outright would have cost you the authoritative brief; untracking keeps it readable locally while keeping it out of the submission.
+
+**AI usage log** is `docs/ai-usage/`: 14 prompts verbatim, 251 replies, 619 tool calls, the exporter, and its test. The AI-versus-human marking is derived from the `Co-Authored-By` trailer rather than asserted, so it can be recomputed. It comes out 37 AI-assisted against 22 without, and by area the split is real: `src/eval/` is 10-0 AI, `src/features/` is 1-8 the other way. I stated two caveats, that the trailer is a lower bound and that the unit is the commit rather than the line.
+
+**On the redaction, which is where the care went.** The transcript contained all four forbidden categories. The obvious fix has a flaw worth flagging: a redactor that hardcodes the hostname and usernames it strips **puts them back into the graded repo**, which is the thing the rule forbids. So the patterns match `*.ac.in` and `/home<N>/` generically and name nothing real, and the peer system's name, which cannot be generalised, is not in the repo at all but passed through `PEER_TERMS` at export time. `test_redaction.py` checks both directions and its own non-vacuity, since a redactor that deletes everything passes a leak test as easily as a correct one.
+
+Verified zero hits for the hostname, cluster paths, node names, the peer term and key paths across the transcript and both scripts. Two survivors are named explicitly in the log rather than quietly scrubbed: the literal regex patterns `\.ssh/` and `@gmail` inside my own verification commands, which are search patterns and not credentials.
+
+`make test` is unchanged at 29 passed, 6 skipped, 0 failed.
+
+**Still open.** Naman's transcript, which I have stubbed as `transcript-naman.md` in the file table and will merge when he sends it. Note it will need the same redaction pass, and his session is likely to contain more cluster material than mine since the NRMS work ran there. And the leaderboard uploads with their screenshots, which remain the one thing only you can do.
+
+---
+
+## PROMPT  <sub>2026-09-16 09:14:25</sub>
+
+> naman's transcript is added
+
+#### Tool  <sub>2026-09-16 09:14:30</sub>
+
+**Bash**
+description: Inspect Naman's transcript
+command: ls -la docs/ai-usage/ && git status --short && echo "=== head of naman's file ===" && head -40 docs/ai-usage/transcript-naman-6a2b339e.md
+
+### Assistant  <sub>2026-09-16 09:14:41</sub>
+
+Three transcripts now, Yash's renamed, and the exporter and log were edited too. Let me see what landed and then scan Naman's for the material that must not ship.
+
+#### Tool  <sub>2026-09-16 09:14:43</sub>
+
+**Bash**
+description: Check what was committed
+command: git log --oneline -4 && echo "=== last commit ===" && git show --stat --format="%an %ad%n%s%n" --date=short HEAD | head -20
+
+### Assistant  <sub>2026-09-16 09:14:46</sub>
+
+Naman committed both. Now the check that matters: whether his transcripts are actually redacted.
+
+#### Tool  <sub>2026-09-16 09:14:50</sub>
+
+**Bash**
+description: Scan all three transcripts for forbidden material
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
+... [truncated, 30 more characters]
+
+### Assistant  <sub>2026-09-16 09:14:59</sub>
+
+One `.ac.in` survived in Naman's second transcript. Let me find it.
+
+#### Tool  <sub>2026-09-16 09:15:00</sub>
+
+**Bash**
+description: Locate the surviving hostname
+command: grep -noEi ".{90}\.ac\.in.{40}" transcript-naman-6a2b339e.md
+
+#### Tool  <sub>2026-09-16 09:15:03</sub>
+
+**Bash**
+description: Show the matching line
+command: grep -niE "\.ac\.in" transcript-naman-6a2b339e.md | head -3 | cut -c1-260
+
+### Assistant  <sub>2026-09-16 09:15:12</sub>
+
+That is a search pattern inside a prompt about verifying redaction, not a hostname. Let me confirm the peer redaction ran on Naman's files and review the README he rewrote.
+
+#### Tool  <sub>2026-09-16 09:15:15</sub>
+
+**Bash**
+description: Marker breakdown per transcript
+command: for f in transcript-*.md; do echo "=== $f"; for m in "REDACTED LINE" "CLUSTER-HOME" "SSH-CREDENTIAL" "GPU-NODE" "CLUSTER-HOST" "CLUSTER-ACCOUNT" "EMAIL\]"; do printf "  %-16s %s\n" "$m" "$(grep -ocE "$m" "$f")"; done; done
+
+### Assistant  <sub>2026-09-16 09:15:21</sub>
+
+Peer and cluster redaction both ran on all three, heavily on Naman's as expected for the cluster work. Now reviewing the log he rewrote.
+
+#### Tool  <sub>2026-09-16 09:15:22</sub>
+
+**Bash**
+description: Read the rewritten AI usage log, part 1
+command: sed -n '1,60p' README.md
+
+#### Tool  <sub>2026-09-16 09:15:25</sub>
+
+**Bash**
+description: Read the rest of the log
+command: sed -n '60,200p' README.md
+
+### Assistant  <sub>2026-09-16 09:15:37</sub>
+
+Thorough and mostly right. Let me verify its numeric claims, since a grader can re-run these greps.
+
+#### Tool  <sub>2026-09-16 09:15:41</sub>
+
+**Bash**
+description: Count redaction markers as occurrences and lines
+command: echo "occurrences (not lines):" && for f in transcript-yash-8940d1d4.md transcript-naman-5f1e2a9d.md transcript-naman-6a2b339e.md; do echo "=== $f"; for m in "REDACTED LINE" "\[CLUSTER-HOME\]" "\[SSH-CREDENTIAL\]" "\[CLUSTER-HOST\]" "\[CLUSTER-ACCOUNT\]" "\[GPU-NODE\]" "\[EMAIL\]"; do printf "  %-20s occ=%s lines=%s\n" "$m" "$(grep -oE "$m" "$f" | wc -l)" "$(grep -cE "$m" "$f")"; done; done
+
+### Assistant  <sub>2026-09-16 09:15:57</sub>
+
+Naman's table used line counts consistently; occurrences differ (e.g. GPU-NODE is 33 occurrences on 19 lines). Let me verify the commit figures and cited line numbers too.
+
+#### Tool  <sub>2026-09-16 09:16:00</sub>
+
+**Bash**
+description: Verify commit counts and cited line numbers
+command: cd /home/yash-more/Downloads/31/ire/a1c2/ire-a2-private/ire-a2 && echo "total commits: $(git log --oneline | wc -l)" && git log --format="%H" | while read h; do git log -1 --format="%B" $h | grep -qi "Co-Authored-By: Claude" && echo AI || echo NO; done | sort | uniq -c && echo "=== cited lines ===" && sed -n '7088p;7159p' docs/ai-usage/transcript-yash-8940d1d4.md | cut -c1-110 && echo "--- naman 7
+... [truncated, 83 more characters]
+
+### Assistant  <sub>2026-09-16 09:16:11</sub>
+
+Line citations are exact. The commit count is stale by one: Naman wrote it before his own final commit landed. Let me recompute the area table too.
+
+#### Tool  <sub>2026-09-16 09:16:17</sub>
+
+**Bash**
+description: Recompute the per-area AI table
+command: python3 - <<'PYEOF'
+import subprocess, collections
+log = subprocess.run(["git","log","--format=%H"],capture_output=True,text=True).stdout.split()
+area = collections.defaultdict(lambda: {"ai":set(),"human":set()})
+for h in log:
+    body = subprocess.run(["git","log","-1","--format=%B",h],capture_output=True,text=True).stdout
+    ai = "co-authored-by: claude" in body.lower()
+    files = subprocess.r
+... [truncated, 892 more characters]
+
+### Assistant  <sub>2026-09-16 09:16:31</sub>
+
+The per-area table is exactly right, and the line citations check out. Let me verify Naman's exporter changes still pass their own test.
+
+#### Tool  <sub>2026-09-16 09:16:33</sub>
+
+**Bash**
+description: Test the exporter and review its changes
+command: python3 docs/ai-usage/test_redaction.py && echo "--- what Naman changed in the exporter ---" && git diff 8d023de..HEAD -- docs/ai-usage/export_transcript.py | grep -E "^[-+]" | grep -v "^[-+][-+]" | head -20
+
+### Assistant  <sub>2026-09-16 09:16:43</sub>
+
+Naman's OWNER change is a good catch: my version hardcoded one name and would have mislabelled his sessions. Let me check one more claim before correcting.
+
+#### Tool  <sub>2026-09-16 09:16:45</sub>
+
+**Bash**
+description: Check which raw session logs exist locally
+command: ls /home/yash-more/.claude/projects/*/*.jsonl 2>/dev/null | head; echo "=== sizes ==="; du -ch /home/yash-more/.claude/projects/*/*.jsonl 2>/dev/null | tail -3
+
+### Assistant  <sub>2026-09-16 09:16:56</sub>
+
+Naman's raw logs are on his machine, so the "3.8 MB" tool-results figure only ever measured my session. Making four corrections.
+
+#### Tool  <sub>2026-09-16 09:17:10</sub>
+
+**Bash**
+description: Correct the four inaccuracies in the log
+command: python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("docs/ai-usage/README.md"); t = p.read_text()
+
+def sub(old, new):
+    global t
+    assert old in t, "NOT FOUND: " + old[:90]
+    t = t.replace(old, new, 1)
+
+# 1. commit counts, anchored so later commits do not silently falsify them
+sub("""Across 61 commits: **38 carry an AI trailer, 23 do not.** By area, counting commits that touched
+each path:
+... [truncated, 2,624 more characters]
+
+#### Tool  <sub>2026-09-16 09:17:20</sub>
+
+**Bash**
+description: Verify per-transcript counts and dates
+command: cd /home/yash-more/Downloads/31/ire/a1c2/ire-a2-private/ire-a2/docs/ai-usage && for f in transcript-yash-8940d1d4.md transcript-naman-5f1e2a9d.md transcript-naman-6a2b339e.md; do echo "=== $f"; grep -E "^- \*\*" "$f" | head -3; echo -n "  prompts actually present: "; grep -c "^## PROMPT" "$f"; echo -n "  date range: "; grep -oE "20[0-9]{2}-[0-9]{2}-[0-9]{2}" "$f" | sort | sed -n '1p;$p' | tr '\n'
+... [truncated, 15 more characters]
+
+### Assistant  <sub>2026-09-16 09:17:29</sub>
+
+All counts match exactly. Date ranges need checking against actual timestamps, not dates mentioned in content.
+
+#### Tool  <sub>2026-09-16 09:17:31</sub>
+
+**Bash**
+description: Extract true session timestamp ranges
+command: for f in transcript-yash-8940d1d4.md transcript-naman-5f1e2a9d.md transcript-naman-6a2b339e.md; do printf "%-34s " "$f"; grep -oE "<sub>20[0-9-]{8} [0-9:]{8}</sub>" "$f" | grep -oE "20[0-9-]{8}" | sort | sed -n '1p;$p' | tr '\n' ' '; echo; done
+
+### Assistant  <sub>2026-09-16 09:17:39</sub>
+
+All three date ranges are exact. Final scan across the whole repo, then commit.
+
+#### Tool  <sub>2026-09-16 09:17:41</sub>
+
+**Bash**
+description: Scan for stale references and private material
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
+
+### Assistant  <sub>2026-09-16 09:18:04</sub>
+
+The stale filename refs are inside the transcripts themselves, which is correct history. But one thing needs a closer look: the peer term in regex-escaped form.
+
+#### Tool  <sub>2026-09-16 09:18:06</sub>
+
+**Bash**
+description: Check for the peer term in escaped form
+command: cd /home/yash-more/Downloads/31/ire/a1c2/ire-a2-private/ire-a2/docs/ai-usage && echo "loose peer pattern (allows punctuation between the two words):" && for f in transcript-*.md; do printf "  %-34s %s\n" "$f" "$(grep -ocEi "vub[^a-z0-9]{0,3}news" "$f")"; done && echo && grep -oEi ".{0,40}vub[^a-z0-9]{0,3}news.{0,25}" transcript-yash-8940d1d4.md | head -4
+
+### Assistant  <sub>2026-09-16 09:18:16</sub>
+
+Seven occurrences, all in my own transcript, from where I wrote the regex itself. Naman's are clean. Making the peer matcher tolerant of punctuation and re-exporting my session.
+
+#### Tool  <sub>2026-09-16 09:18:23</sub>
+
+**Bash**
+description: Loosen the peer matcher
+command: cd /home/yash-more/Downloads/31/ire/a1c2/ire-a2-private/ire-a2 && python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("docs/ai-usage/export_transcript.py"); t = p.read_text()
+old = """_terms = [x.strip() for x in os.environ.get('PEER_TERMS', '').split(',') if x.strip()]
+PEER = re.compile('|'.join(re.escape(x) for x in _terms), re.I) if _terms else None"""
+new = """#
+# Each term is matched loosel
+... [truncated, 910 more characters]
+
+### Assistant  <sub>2026-09-16 09:18:30</sub>
+
+Adding a fixture so the loose matching is actually tested, then re-exporting.
+
+#### Tool  <sub>2026-09-16 09:18:35</sub>
+
+**Bash**
+description: Add loose-form peer fixtures to the test
+command: python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("docs/ai-usage/test_redaction.py"); t = p.read_text()
+old = '''    "we compared against example-peer-system, which scored higher",
+]
+FORBIDDEN = [r"\\.ac\\.in", r"/home\\d", r"node\\d\\d", r"[SSH-CREDENTIAL]", r"\\.ssh/", r"@gmail",
+             r"example-peer-system"]'''
+new = '''    "we compared against example-peer-system, which scored higher",
+... [truncated, 569 more characters]
+
+#### Tool  <sub>2026-09-16 09:18:44</sub>
+
+**Bash**
+description: Re-export with the loosened matcher
+[REDACTED LINE: referred to a classmate's Assignment-1 system. Dropped rather than renamed, because it is a third party's work and none of it is ours to publish.]
+... [truncated, 118 more characters]
 
