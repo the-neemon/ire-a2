@@ -88,11 +88,54 @@ These are enforced in code and tests, not by discipline.
 
 ## Status
 
-| Requirement | Status |
-|---|---|
-| Q1 click-history and session features | in progress |
-| Q2 two-stage retrieve-then-rank | in progress |
-| Q3 baseline reproduced then beaten | not started |
-| Q4 serving and scale analysis | partial, A1 numbers carried forward |
-| Q5 extended evaluation with slices and CIs | harness reused from A1 |
-| Q6 design note | not started |
+All measured numbers below are per-impression AUC on the EB-NeRD small **test** split, selected on
+val and scored once. Every one has a row in [docs/FACTS.md](docs/FACTS.md).
+
+| Requirement | Status | Where |
+|---|---|---|
+| Q1 click-history and session features | **done**, 22 features on EB-NeRD, 17 on MIND | [docs/report/q1-features-and-availability.md](docs/report/q1-features-and-availability.md) |
+| Q2 two-stage retrieve-then-rank | **done**, +0.2528 [+0.2514, +0.2543] over fused retrieval | [docs/report/q2-reranker-and-ablations.md](docs/report/q2-reranker-and-ablations.md) |
+| Q3 baseline reproduced then beaten | **done** on EB-NeRD, NRMS 0.5938, ours 0.7908 | [docs/report/q3-nrms-baseline.md](docs/report/q3-nrms-baseline.md) |
+| Q4 serving and scale analysis | **done**, re-measured on the shipped model | [docs/report/q4-serving-and-scale.md](docs/report/q4-serving-and-scale.md) |
+| Q5 extended evaluation with slices and CIs | **done**, both datasets, both splits | [docs/report/q5-metrics-and-methodology.md](docs/report/q5-metrics-and-methodology.md) |
+| Q6 design note | **done** | [docs/design-note/design-note.pdf](docs/design-note/design-note.pdf) |
+| Q7 deliverables | code, harness and README done; **leaderboard screenshots pending upload** | [docs/report/q7-leaderboard-submissions.md](docs/report/q7-leaderboard-submissions.md) |
+| Q8 commit policy | **honoured**, incremental commits carrying their measured result | `git log` |
+| Q9 anti-gaming and leakage | **done**, tests fire on injection | [docs/report/q9-anti-gaming.md](docs/report/q9-anti-gaming.md) |
+
+`make test` is 29 passed, 6 skipped, 0 failed. The skips are datasets not built on the machine that
+ran it (`ebnerd_demo`) and assertions that do not apply to MIND, which ships no per-item history
+timestamps and no engagement data.
+
+Known gaps, stated rather than left to be discovered:
+
+- **Leaderboard scores and screenshots are not in the design note yet.** Both prediction files are
+  built and pass the offline validator; the uploads are the remaining step. The note marks the
+  missing cells in red rather than leaving them blank.
+- **The baseline covers one dataset.** NRMS was reproduced and beaten on EB-NeRD only.
+- **Approximate search is motivated but unmeasured.** Q4 shows the exact index is what breaks at
+  10x; we did not measure the recall an IVF or HNSW index would cost.
+
+## Prediction files
+
+The Codabench prediction files are **deliberately not in this repository**. `ebnerd_predictions.zip`
+is 230 MB and `mind_prediction.zip` 107 MB, against Q8's rule that no large files go in git, so
+`submissions/` and `*.zip` are both in [.gitignore](.gitignore). They are submitted through Moodle
+instead. Rebuild them from a trained model with:
+
+```bash
+python -m src.pipeline.submit_ebnerd_rerank --model models/ebnerd_small_submission.txt
+python -m src.pipeline.submit_mind_rerank   --model models/mind_small_submission.txt
+python -m src.submission.validate ebnerd submissions/ebnerd_predictions.zip
+```
+
+The uploaded model is **not** the reported one and the difference is documented rather than
+smoothed over: Codabench withholds `article_ids_clicked`, so the five click-popularity features
+have no source on the test period and the exposure features replace them. That costs 0.7908 to
+0.7351 on our own labelled test split. Both numbers appear in the design note, never one standing
+in for the other.
+
+## AI usage
+
+Per Q7.4, the AI usage log, the full prompt history and the marking of AI-generated against
+human-written code are in **[docs/ai-usage/](docs/ai-usage/)**.

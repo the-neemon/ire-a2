@@ -33,3 +33,7 @@ __pycache__/
 # Trained boosters: regenerable from src/rerank/train.py, and the submission path reads them
 # by path rather than from git.
 models/
+
+# The assignment brief itself. It is the professor's document, not our work product, and the
+# submission should not hand it back to him. Kept on disk as a source of truth, untracked.
+A2.pdf
