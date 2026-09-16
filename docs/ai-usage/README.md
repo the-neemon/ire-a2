@@ -6,7 +6,7 @@ against human-written code. This directory holds all three.
 | file | what it is |
 |---|---|
 | [transcript-yash.md](transcript-yash.md) | Yash's full session: 14 prompts verbatim, 251 assistant replies, 619 tool calls |
-| `transcript-naman.md` | **pending.** Naman's session log, to be added and merged |
+| [transcript-naman.md](transcript-naman.md) | Naman's session: 76 prompts verbatim, 432 assistant replies, 701 tool calls |
 | [export_transcript.py](export_transcript.py) | the exporter, so the transcript can be regenerated from the raw session log |
 | [test_redaction.py](test_redaction.py) | proves the redaction rules fire, and that they leave ordinary text alone |
 
