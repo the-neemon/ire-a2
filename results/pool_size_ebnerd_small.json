@@ -1,0 +1,41 @@
+{
+  "dataset": "ebnerd_small",
+  "scales": [
+    {
+      "fraction": 0.1,
+      "articles": 2074,
+      "requests": 300,
+      "pool_mean": 344.57666666666665,
+      "pool_median": 364.5,
+      "query_tokens_mean": 17.723333333333333,
+      "history_items_resolving_mean": 3.5766666666666667
+    },
+    {
+      "fraction": 0.25,
+      "articles": 5184,
+      "requests": 300,
+      "pool_mean": 366.49,
+      "pool_median": 375.0,
+      "query_tokens_mean": 29.38,
+      "history_items_resolving_mean": 5.8133333333333335
+    },
+    {
+      "fraction": 0.5,
+      "articles": 10369,
+      "requests": 300,
+      "pool_mean": 382.14,
+      "pool_median": 386.0,
+      "query_tokens_mean": 73.26666666666667,
+      "history_items_resolving_mean": 14.563333333333333
+    },
+    {
+      "fraction": 1.0,
+      "articles": 20738,
+      "requests": 300,
+      "pool_mean": 388.10333333333335,
+      "pool_median": 393.0,
+      "query_tokens_mean": 144.55666666666667,
+      "history_items_resolving_mean": 29.08
+    }
+  ]
+}

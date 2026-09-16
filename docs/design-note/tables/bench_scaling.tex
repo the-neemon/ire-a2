@@ -1,1 +1,10 @@
-\begin{center}\pend{pending}: \texttt{bench\_scaling} not generated yet\end{center}
+\begin{tabular}{@{}rrrrrrrr@{}}
+\toprule
+corpus & articles & FAISS MiB & BM25 p50 & exact kNN p50 & rerank p50 & total p50 & total p99 \\
+\midrule
+10\% & 2,074 & 6.1 & 0.24 & 0.79 & 2.33 & 3.94 & 7.28 \\
+25\% & 5,184 & 15.2 & 0.40 & 1.66 & 2.20 & 4.99 & 8.42 \\
+50\% & 10,369 & 30.4 & 0.69 & 3.13 & 2.35 & 7.00 & 10.22 \\
+100\% & 20,738 & 60.8 & 3.93 & 21.11 & 17.66 & 46.87 & 109.00 \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,34 @@
+{
+  "tag": "ladder12",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "cat_match",
+    "hist_len",
+    "pop_rank",
+    "emb_rank",
+    "ent_overlap",
+    "pop_24h",
+    "pop_velocity",
+    "n_cands",
+    "pop_rel_max"
+  ],
+  "best_iteration": 155,
+  "val_auc": 0.6538855409028004,
+  "test_auc": 0.6666481942436528,
+  "importance": {
+    "emb": 118666.55161094666,
+    "pop_rel_max": 67559.06784248352,
+    "n_cands": 51645.59705543518,
+    "pop_causal": 35250.88814544678,
+    "cat_match": 33645.85808181763,
+    "emb_rank": 32953.078758239746,
+    "bm25": 31175.273069381714,
+    "pop_rank": 30978.758927345276,
+    "pop_24h": 30833.68645954132,
+    "hist_len": 27225.782485961914,
+    "pop_velocity": 22273.07841205597,
+    "ent_overlap": 7919.470083236694
+  }
+}

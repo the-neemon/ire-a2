@@ -26,10 +26,12 @@ model with the 6\,h window.}
 In Assignment~1 the same totals were worth $+$0.042 to $+$0.075, more than our whole semantic
 axis, because they were compared against systems with no popularity signal at all. Here they
 compete with click counts restricted to the past, which capture most of the same information
-legitimately. Cheating would buy \QnineDelta; the honest behavioural axis earns $+$0.2223 on test,
-about ten times more. End to end, the servable re-ranker (\EBFinalTest{} test) far outscores stage
-one with lifetime popularity added (\EBLeakyTest{} test). \mind{} cannot run this comparison: its
-lifetime columns are null for all 65,238 articles.
+legitimately. Cheating would buy \QnineDelta{}, while the behavioural axis is worth \EBGainTest{}
+over stage one, roughly an order of magnitude more. Both arms of this comparison are the
+10-feature model, so it prices the leak against that round rather than against the shipped 22.
+End to end, the servable re-ranker (\EBFinalTest{} on test) far outscores stage one with lifetime
+popularity added (\EBLeakyTest{}). \mind{} cannot run this comparison at all: its lifetime columns
+are null for all 65,238 articles.
 
 \textbf{Enforcement.} Two tests guard the boundary. One asserts that no click, exposure or
 engagement value used for an impression comes from at or after its timestamp, on every split; the
@@ -41,22 +43,8 @@ violation and watching it fail, after we found checks that passed without checki
 describing clicks before \emph{that block} begins. Our feature builder merged both, letting the
 later block overwrite the earlier for 11,658 users. Our val split is carved from the earlier
 block, so val impressions were described by history from their own future:
-
-\begin{table}[tb]
-\centering\small
-\begin{tabular}{@{}lccc@{}}
-\toprule
-split & impressions & matched to the later history block & history at or after the impression \\
-\midrule
-train & 168,522 & 144,087 & 143,998 (99.9\%) \\
-val & 64,365 & 61,026 & 60,901 (99.8\%) \\
-test & 244,647 & 244,647 & 0 (0.0\%) \\
-\bottomrule
-\end{tabular}
-\caption{Future-click contamination in the engagement features before the fix. Test was clean
-because it comes from the later block itself.}
-\label{tab:leak}
-\end{table}
+\textbf{99.8\% of validation and 99.9\% of training impressions were affected}, while test was
+clean at 0.0\% because it comes from the later block itself (Appendix~\ref{app:leak}).
 
 We found it by chasing a metric discrepancy, not with a test: two implementations of the same user
 vector scored 0.6473 and 0.5506, and making one reproduce both numbers with only the history

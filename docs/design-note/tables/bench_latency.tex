@@ -1,1 +1,12 @@
-\begin{center}\pend{pending}: \texttt{bench\_latency} not generated yet\end{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+stage & p50 (ms) & p95 (ms) & p99 (ms) & share of p50 \\
+\midrule
+tokenise query & 1.49 & 2.36 & 5.31 & 4\% \\
+BM25 top 200 & 3.82 & 9.36 & 12.41 & 9\% \\
+embedding top 200 (exact) & 18.65 & 35.54 & 48.08 & 44\% \\
+assemble features & 0.60 & 0.71 & 2.10 & 1\% \\
+LightGBM predict & 16.37 & 26.85 & 34.72 & 39\% \\
+\textbf{total} & \textbf{42.45} & \textbf{64.66} & \textbf{77.31} &  \\
+\bottomrule
+\end{tabular}

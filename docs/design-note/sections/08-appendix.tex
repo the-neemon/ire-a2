@@ -1,11 +1,30 @@
+\section{The engagement leak, measured}
+\label{app:leak}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+split & impressions & matched to the later history block & history at or after the impression \\
+\midrule
+train & 168,522 & 144,087 & 143,998 (99.9\%) \\
+val & 64,365 & 61,026 & 60,901 (99.8\%) \\
+test & 244,647 & 244,647 & 0 (0.0\%) \\
+\bottomrule
+\end{tabular}
+\caption{Future-click contamination in the engagement features before the fix
+(Section~\ref{sec:q9}). Test was clean because it is drawn from the later block itself.}
+\label{tab:leak}
+\end{table}
+
 \section{Full ablation grids}
 \label{app:grids}
 
 Each arm removes one feature and retrains the same model; \feat{stage1_only} keeps only the two
 retrieval scores and \feat{pop_only} only click popularity. A positive ``full $-$ arm'' means the
-removed feature helped. Bold marks intervals that exclude zero. The grids were run on the model
-before exposure features were added (17 features on \eb{}, 12 on \mind{}), which is why their
-full-model AUC is below the shipped system's.
+removed feature helped. Bold marks intervals excluding zero. These grids were run before the
+exposure features were added (17 features on \eb{}, 12 on \mind{}), which is why their full-model
+AUC sits below the shipped system's.
 
 \begin{table}[H]
 \centering\scriptsize
@@ -17,6 +36,28 @@ full-model AUC is below the shipped system's.
 \centering\scriptsize
 \input{tables/ablation_mind}
 \caption{\mind{} small, 12-feature model, 61,894 val and 73,152 test impressions.}
+\end{table}
+
+\section{Beyond-accuracy metrics}
+\label{app:beyond}
+
+\begin{table}[H]
+\centering\footnotesize
+\input{tables/q5_beyond_test}
+\caption{Top-10 beyond-accuracy metrics, test split. Diversity is the share of top-10 pairs from
+different categories; novelty is mean self-information in bits, so higher is less obvious;
+coverage is the share of the catalogue that ever reaches a top 10. Coverage carries no interval
+for the reason given in Section~\ref{sec:extended}.}
+\end{table}
+
+\section{Scaling measurements}
+\label{app:scaling}
+
+\begin{table}[H]
+\centering\small
+\input{tables/bench_scaling}
+\caption{Latency against corpus size in milliseconds, the numbers behind
+Figure~\ref{fig:scaling}. Same machine and same model throughout.}
 \end{table}
 
 \section{Isolated-feature sweeps}
@@ -66,6 +107,7 @@ python -m src.eval.run ebnerd_small --rerank-tag final
 python -m src.eval.compare_reranks ebnerd_small ladder17 final
 python -m src.eval.bench ebnerd_small --requests 2000 \
        --scale-points 0.1 0.25 0.5 1.0 --model-tag final
+python -m src.eval.pool_size ebnerd_small
 python -m pytest tests/
 python -m src.submission.validate ebnerd submissions/ebnerd_predictions.zip
 \end{verbatim}

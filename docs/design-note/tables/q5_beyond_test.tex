@@ -1,1 +1,17 @@
-\begin{center}\pend{pending}: \texttt{q5\_beyond\_test} not generated yet\end{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+system & diversity & novelty (bits) & coverage \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{\eb{} small, test}} \\
+BM25 (stage one) & \cellci{0.7968}{0.7961}{0.7974} & \cellci{16.966}{16.964}{16.969} & 0.2067 \\[2pt]
+embeddings (stage one) & \cellci{0.7803}{0.7796}{0.7809} & \cellci{17.007}{17.004}{17.010} & 0.2050 \\[2pt]
+fused (stage one) & \cellci{0.7820}{0.7814}{0.7826} & \cellci{16.999}{16.996}{17.002} & 0.2051 \\[2pt]
+two-stage re-ranker & \cellcib{0.7901}{0.7895}{0.7907} & \cellcib{17.084}{17.082}{17.086} & \textbf{0.2026} \\[2pt]
+\midrule
+\multicolumn{4}{@{}l}{\textit{\mind{} small, test}} \\
+BM25 (stage one) & \cellci{0.8428}{0.8416}{0.8439} & \cellci{16.927}{16.924}{16.929} & 0.0536 \\[2pt]
+embeddings (stage one) & \cellci{0.8215}{0.8202}{0.8227} & \cellci{16.926}{16.923}{16.929} & 0.0523 \\[2pt]
+fused (stage one) & \cellci{0.8182}{0.8169}{0.8195} & \cellci{16.925}{16.922}{16.927} & 0.0529 \\[2pt]
+two-stage re-ranker & \cellcib{0.8008}{0.7996}{0.8021} & \cellcib{17.003}{17.001}{17.005} & \textbf{0.0494} \\[2pt]
+\bottomrule
+\end{tabular}

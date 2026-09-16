@@ -30,19 +30,14 @@ impression precedes every val impression, which precedes every test impression.}
 Thursday to predict Wednesday, which no deployed system can do. \eb{} val begins 23 May 07:00 and
 test 25 May 07:00; \mind{} uses the last day of its training log as val and its dev log as test.
 
-\textbf{Metric: per-impression AUC.} For one impression, AUC is the chance that a randomly chosen
-clicked candidate is ranked above a randomly chosen non-clicked one, so 0.5 is random and 1.0 is
-perfect. We compute it inside each impression and average over impressions that contain both a
-click and a non-click. We do not pool all candidates across impressions, because the ranking is
-only ever judged inside one impression; pooling rewards features that merely differ between
-impressions. The effect is large: article freshness scores 0.5861 pooled but 0.5087 per impression.
+\textbf{Metric: per-impression AUC}, computed inside each impression and averaged over those with
+both a click and a non-click. We never pool candidates across impressions, because the ranking is
+only judged inside one: pooling rewards features that merely differ between impressions, and the
+effect is large, with article freshness reading 0.5861 pooled against 0.5087 per impression.
 
-\textbf{Significance: paired bootstrap 95\% confidence intervals} \cite{efron1993}. To compare two
-systems we resample the impressions with replacement 1,000 times, score \emph{both} systems on each
-resample, and take the middle 95\% of the differences. Sharing the resample matters: two systems
-scored on the same impressions make correlated errors, and pairing cancels that noise. A gain is
-claimed only if its interval excludes zero. Every choice is selected on val, and test is scored
-once.
+\textbf{Significance: paired bootstrap 95\% intervals} \cite{efron1993}, 1,000 resamples, both
+systems scored on the \emph{same} resampled impressions so their correlated errors cancel. A gain
+counts only if its interval excludes zero. Selection happens on val; test is scored once.
 
 \subsection{Architecture: retrieve, then re-rank}
 

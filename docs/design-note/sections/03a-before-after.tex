@@ -1,2 +1,38 @@
-% stub, replaced once the re-runs land
-\pend{03a-before-after pending}
+\subsection{Before and after re-ranking}
+\label{sec:beforeafter}
+
+\begin{table}[tb]
+\centering\footnotesize
+\input{tables/q5_overall_test}
+\caption{All accuracy metrics on the test split, with 95\% bootstrap intervals beneath each mean.
+``Stage one'' rows are the retrieval scores ranking the same candidates; the re-ranker reorders
+them. $^\ast$Lifetime popularity is not available at serving time and is reported only to price
+what it would buy (Section~\ref{sec:q9}). Validation-split figures are in Appendix~\ref{app:val}.}
+\label{tab:overall}
+\end{table}
+
+\textbf{Two baselines appear in this report and they are not the same thing.} Here ``stage one''
+is the fused retrieval score ranking the candidates directly (\EBFusedTest{} on test). The
+ablation grid in Table~\ref{tab:choices} instead compares against \feat{stage1_only}, a ranker
+trained on the two retrieval scores alone, which is slightly stronger at 0.5430. That is why the
+same result reads \EBGainTest{} here and $+$0.2223 there.
+
+\textbf{On \eb{} the re-ranker is worth \EBGainTest{} AUC} over fused retrieval,
+\EBGainTestCI{} on test, and \EBGainVal{} \EBGainValCI{} on val. The val and test intervals
+overlap, so the gain generalises across the time boundary rather than being an artefact of what we
+selected on. Every other accuracy metric moves the same way, so this is a genuine reordering rather
+than a trade between metrics.
+
+\textbf{On \mind{} the same architecture is worth \MDGainTest{} \MDGainTestCI{}}, far less. Two
+things compound. Five of the 22 features have no source in \mind{}, including every freshness and
+engagement signal, so the behavioural axis is thinner. And \mind{}'s stage one is already stronger
+in absolute terms (\MDFusedTest{} against \eb{}'s \EBFusedTest{}), which leaves less headroom to
+begin with. We report the contrast rather than presenting one system that is quietly two: a
+smaller gain on a dataset with less signal is a measured property of the data.
+
+\textbf{One family of features did transfer, and it was the one built under duress.} An earlier
+round of seven features moved \mind{} by nothing significant at all. The five exposure features,
+added because Codabench withholds the click labels, are worth \LadderExpMindTest{}
+\LadderExpMindTestCI{} on \mind{} test and \LadderExpMindVal{} \LadderExpMindValCI{} on val. How
+often an article was \emph{shown} is apparently a signal both corpora carry, where freshness and
+engagement are specific to \eb{}.

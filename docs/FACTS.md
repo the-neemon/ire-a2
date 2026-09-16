@@ -1257,3 +1257,117 @@ unbounded count, which is the leak-specific half and holds for any window.
 purpose, the fix is to add it to the allow-list, which keeps the guard meaningful for every other
 scorer.
 
+### 19.6 The regenerated Q5 harness, both datasets, shipped models
+
+`python -m src.eval.run <dataset> --rerank-tag final`. Machine: laptop-yash. EB-NeRD 9 m 57 s at
+7.44 GB peak; MIND 4 m 07 s at 1.66 GB.
+
+| | EB-NeRD val | EB-NeRD test | MIND val | MIND test |
+|---|---|---|---|---|
+| fused retrieval (stage one) | 0.5528 | 0.5380 | 0.6390 | 0.6381 |
+| two-stage re-ranker | **0.7885** | **0.7908** | **0.6997** | **0.6964** |
+| rerank - fused | +0.2357 [+0.2329, +0.2385] | **+0.2528** [+0.2514, +0.2543] | +0.0607 [+0.0587, +0.0628] | **+0.0583** [+0.0565, +0.0603] |
+
+The harness AUC equals the trainer's independently computed per-impression AUC to four decimals
+on both datasets, which is the check that the flat per-candidate table was reshaped into
+`candidates` order correctly.
+
+**Two baselines exist and must not be conflated.** `rerank - fused` compares against the fused
+retrieval score itself (0.5380 test); the ablation grid's `stage1_only` arm is a LightGBM trained
+on the two retrieval scores (0.5430 test) and therefore reports +0.2223. Both are correct.
+
+### 19.7 MIND gains far less, except from exposure
+
+MIND supports 17 of the 22 features. The two-stage gain is **+0.0583 test against EB-NeRD's +0.2528**, about a quarter, which is the expected consequence of the availability table rather
+than a failure.
+
+The exception is worth recording. The seven features added on 2026-09-14 moved MIND by nothing
+significant, but the five **exposure** features do transfer:
+
+| step, MIND small | val | test |
+|---|---|---|
+| 12 -> 17 features (exposure family) | **+0.0458** [+0.0440, +0.0478] | **+0.0297** [+0.0278, +0.0316] |
+
+The 12-feature arm retrained here reproduces the committed `rerank_mind_small_full` exactly
+(0.6539 val / 0.6666 test), so the comparison is like for like. How often an article was *shown*
+is a signal both corpora carry; freshness and engagement are EB-NeRD-specific.
+
+### 19.8 Slices: the head result reverses across the split boundary
+
+| slice | EB-NeRD test, fused | EB-NeRD test, rerank | MIND test, fused | MIND test, rerank |
+|---|---|---|---|---|
+| cold | 0.5449 | **0.7910** | 0.5601 | **0.6480** |
+| warm | 0.5372 | **0.7908** | 0.6470 | **0.7019** |
+| zero history | n/a (none) | n/a | 0.5125 | **0.6288** |
+| head | **0.6353** | 0.5530 | 0.6347 | **0.7884** |
+| tail | 0.5377 | **0.7916** | 0.6381 | **0.6953** |
+
+**On EB-NeRD head the re-ranker loses to stage one on test (0.5530 against 0.6353, intervals
+disjoint) and beats it on val (0.7080 against 0.6638, also disjoint).** A significant effect that
+flips sign across the temporal boundary is a property of the window, not a stable claim, so no
+directional claim is made. Head is 803 impressions, 0.3% of the split.
+
+MIND, whose popularity window is unbounded rather than 6 h, goes the other way and posts its
+largest slice gain on head. Consistent with the hypothesis that a 6 h window discounts steadily
+popular articles, but untested: nobody has varied the window on MIND.
+
+**Cold and warm are now indistinguishable on EB-NeRD** (0.7910 and 0.7908). The 10-feature model
+had cold ahead of warm; with popularity and exposure dominating, history length stopped mattering.
+
+### 19.9 Coverage cannot take a bootstrap interval, and the attempt proves it
+
+Diversity and novelty are per-impression averages and carry ordinary bootstrap intervals. Coverage
+counts **distinct** articles, and a resample of n impressions with replacement contains only about
+63% of them, so the articles only the missing impressions would have surfaced are absent and every
+draw undercounts.
+
+Measured on EB-NeRD test, BM25: coverage **0.2067**, resampled spread **[0.1875, 0.1920]**. The
+spread does not contain the value it is supposedly an interval for. Coverage is therefore reported
+as a point estimate, and `beyond_accuracy.coverage_resample_spread` is named for what it is.
+
+### 19.10 Q4 re-measured on the shipped model
+
+`make bench` against `models/ebnerd_small_final.txt`, 22 features, 399 trees, 2,000 unbatched
+single requests. Machine: laptop-yash, idle.
+
+| | 10-feature model (2026-09-08) | **22-feature model (shipped)** |
+|---|---|---|
+| p50 / p95 / p99 end to end | 22.06 / 48.94 / 64.90 ms | **42.45 / 64.66 / 77.31 ms** |
+| exact kNN share of p50 | 61% | 44% |
+| re-ranker share of p50 | 23% | **39%** |
+| serial throughput, one core | 45 QPS | **23.6 QPS** |
+| SLA headroom at p99 < 100 ms | 1.5x | **1.29x** |
+| cost per 1000 queries, projected | $0.000245 | **$0.000472** |
+
+**The accuracy gain cost latency**: 22 features and 399 trees roughly doubled the median request
+and halved the headroom. The SLA is still met. Index footprints: BM25 7.0 MiB RAM / 3.0 MiB disk;
+FAISS flat 60.8 MiB both; feature store **547.0 MiB RAM / 240.4 MiB disk** over 5,514,689 rows,
+up from 294.5 / 115.7 at 10 features.
+
+### 19.11 What breaks at 10x, and a measurement that rules out the obvious explanation
+
+Per-stage p50 growth across a 10.0x corpus: `ann` **26.8x**, `bm25` 16.2x, `rerank` 7.6x,
+`tokenise` 4.6x, `features` 2.9x, total 11.9x.
+
+`ann` growing super-linearly is the memory hierarchy: 6.1 MiB of vectors is cache-resident,
+60.8 MiB is not. But `rerank` and `features` also grew, and neither can do more work when the
+corpus grows, since both touch only the candidate pool. `python -m src.eval.pool_size
+ebnerd_small` settles it:
+
+| corpus | articles | mean candidate pool | mean query tokens | history items resolving |
+|---|---|---|---|---|
+| 10% | 2,074 | 344.6 | 17.7 | 3.6 |
+| 25% | 5,184 | 366.5 | 29.4 | 5.8 |
+| 50% | 10,369 | 382.1 | 73.3 | 14.6 |
+| 100% | 20,738 | 388.1 | 144.6 | 29.1 |
+
+**The pool grows 1.13x across a 10x corpus**, so the re-ranker is doing the same work more slowly.
+Every stage slows at the largest corpus together, which is consistent with the dense scan's memory
+traffic evicting the other stages from cache: the exact index taxes the whole request, not only
+its own stage. Mechanism labelled as the consistent reading, not separately proven.
+
+**The query-length confound is now quantified rather than only disclosed**: mean query length
+falls 144.6 -> 17.7 tokens between full corpus and a tenth, because a subsampled-out article
+contributes no history title. So the `tokenise` and `bm25` growth factors are upper bounds on the
+corpus effect. `ann` is unaffected, which is why the verdict rests on it.
+

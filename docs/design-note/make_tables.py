@@ -97,7 +97,8 @@ def numbers() -> str:
             m[f"{p}HeadThr{sp}"] = f"{r['head_threshold_train_clicks']:.0f}"
 
     for key, fname in (("Seven", "compare_ebnerd_small_ladder10_vs_ladder17.json"),
-                       ("Exp", "compare_ebnerd_small_ladder17_vs_final.json")):
+                       ("Exp", "compare_ebnerd_small_ladder17_vs_final.json"),
+                       ("ExpMind", "compare_mind_small_ladder12_vs_final.json")):
         r = load(fname)
         for split, sp in (("val", "Val"), ("test", "Test")):
             if r is None or split not in r:
@@ -109,6 +110,22 @@ def numbers() -> str:
             m[f"Ladder{key}{sp}CI"] = ci(s["ci_lo"], s["ci_hi"])
             m[f"Ladder{key}{sp}From"] = f"{s['auc_a']:.4f}"
             m[f"Ladder{key}{sp}To"] = f"{s['auc_b']:.4f}"
+
+    pool = load("pool_size_ebnerd_small.json")
+    if pool:
+        lo, hi = pool["scales"][0], pool["scales"][-1]
+        m.update(
+            PoolSmall=f"{lo['pool_mean']:.0f}", PoolFull=f"{hi['pool_mean']:.0f}",
+            PoolGrowth=f"{hi['pool_mean'] / lo['pool_mean']:.2f}",
+            TokSmall=f"{lo['query_tokens_mean']:.1f}", TokFull=f"{hi['query_tokens_mean']:.1f}",
+            TokGrowth=f"{hi['query_tokens_mean'] / lo['query_tokens_mean']:.1f}",
+            HistSmall=f"{lo['history_items_resolving_mean']:.1f}",
+            HistFull=f"{hi['history_items_resolving_mean']:.1f}",
+        )
+    else:
+        for k in ("PoolSmall", "PoolFull", "PoolGrowth", "TokSmall", "TokFull", "TokGrowth",
+                  "HistSmall", "HistFull"):
+            m[k] = PENDING
 
     q9 = load("q9_ebnerd_small_val.json")
     if q9:
@@ -226,9 +243,16 @@ def beyond(split: str) -> str | None:
             b = r["beyond_accuracy"][system]
             cells = []
             for key in ("diversity", "novelty", "coverage"):
-                lo, hi = b.get(f"{key}_ci", [float("nan"), float("nan")])
                 fmt = "{:.3f}" if key == "novelty" else "{:.4f}"
-                macro = r"\cellcib" if system == "rerank" else r"\cellci"
+                bold = system == "rerank"
+                if key == "coverage":
+                    # No interval: the bootstrap cannot interval a distinct-article count, and
+                    # printing the resample spread as one would be a wrong number, not a wide one.
+                    value = fmt.format(b[key])
+                    cells.append(rf"\textbf{{{value}}}" if bold else value)
+                    continue
+                lo, hi = b.get(f"{key}_ci", [float("nan"), float("nan")])
+                macro = r"\cellcib" if bold else r"\cellci"
                 cells.append(f"{macro}{{{fmt.format(b[key])}}}{{{fmt.format(lo)}}}{{{fmt.format(hi)}}}")
             rows.append(f"{SYSTEM_LABEL[system]} & " + " & ".join(cells) + r" \\[2pt]")
         rows.append(r"\midrule")
@@ -304,10 +328,14 @@ def bench_scaling_plot() -> str | None:
         coords = " ".join(f"({row['articles']},{row[f'{key}_p50_ms']:.3f})" for row in sc)
         plots.append(rf"\addplot[color={colour}, mark={mark}, thick] coordinates {{{coords}}};"
                      "\n" rf"\addlegendentry{{{label}}}")
+    ticks = ",".join(str(row["articles"]) for row in sc)
+    labels = ",".join(f"{row['articles'] / 1000:.1f}k" for row in sc)
     return (r"\begin{tikzpicture}" "\n"
-            r"\begin{axis}[width=0.52\linewidth, height=5.2cm, xmode=log, ymode=log," "\n"
+            r"\begin{axis}[width=0.62\linewidth, height=5.4cm, xmode=log, ymode=log," "\n"
             r"  xlabel={articles in the corpus}, ylabel={p50 latency (ms)}, log basis x=10," "\n"
-            r"  legend style={font=\scriptsize}, legend pos=north west, tick label style={font=\scriptsize}," "\n"
+            rf"  xtick={{{ticks}}}, xticklabels={{{labels}}}, xticklabel style={{font=\scriptsize}}," "\n"
+            r"  legend style={font=\scriptsize, fill opacity=0.85, text opacity=1}," "\n"
+            r"  legend pos=south east, tick label style={font=\scriptsize}," "\n"
             r"  label style={font=\small}, grid=major, grid style={gray!20}]" "\n"
             + "\n".join(plots) + "\n" r"\end{axis}" "\n" r"\end{tikzpicture}" "\n")
 

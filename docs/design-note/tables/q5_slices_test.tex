@@ -1,1 +1,18 @@
-\begin{center}\pend{pending}: \texttt{q5\_slices\_test} not generated yet\end{center}
+\begin{tabular}{@{}lrcccc@{}}
+\toprule
+slice & impressions & fused (stage one) & two-stage re-ranker & gain & fused + lifetime pop.$^\ast$ \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{\eb{} small, test} \quad {\scriptsize cold: history $\le$ 34 clicks; head: clicked article with $\ge$ 349 train clicks}} \\
+cold & 25,105 & \cellci{0.5449}{0.5407}{0.5488} & \cellcib{0.7910}{0.7879}{0.7942} & $+$0.2461 & \cellci{0.5906}{0.5865}{0.5945} \\[2pt]
+warm & 219,542 & \cellci{0.5372}{0.5358}{0.5386} & \cellcib{0.7908}{0.7897}{0.7917} & $+$0.2535 & \cellci{0.5785}{0.5771}{0.5798} \\[2pt]
+head & 803 & \cellci{0.6353}{0.6143}{0.6574} & \cellcib{0.5530}{0.5316}{0.5728} & $-$0.0823 & \cellci{0.6921}{0.6700}{0.7129} \\[2pt]
+tail & 243,844 & \cellci{0.5377}{0.5364}{0.5390} & \cellcib{0.7916}{0.7906}{0.7925} & $+$0.2539 & \cellci{0.5793}{0.5781}{0.5806} \\[2pt]
+\midrule
+\multicolumn{6}{@{}l}{\textit{\mind{} small, test} \quad {\scriptsize cold: history $\le$ 3 clicks; head: clicked article with $\ge$ 152 train clicks}} \\
+cold & 7,529 & \cellci{0.5601}{0.5533}{0.5676} & \cellcib{0.6480}{0.6415}{0.6548} & $+$0.0880 & -- \\[2pt]
+warm & 65,623 & \cellci{0.6470}{0.6448}{0.6492} & \cellcib{0.7019}{0.6999}{0.7039} & $+$0.0549 & -- \\[2pt]
+zero\_history & 2,214 & \cellci{0.5125}{0.5007}{0.5246} & \cellcib{0.6288}{0.6161}{0.6404} & $+$0.1163 & -- \\[2pt]
+head & 860 & \cellci{0.6347}{0.6167}{0.6508} & \cellcib{0.7884}{0.7783}{0.7984} & $+$0.1538 & -- \\[2pt]
+tail & 72,292 & \cellci{0.6381}{0.6359}{0.6401} & \cellcib{0.6953}{0.6932}{0.6975} & $+$0.0571 & -- \\[2pt]
+\bottomrule
+\end{tabular}

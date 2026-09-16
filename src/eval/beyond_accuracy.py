@@ -77,16 +77,24 @@ def evaluate(candidates: list, scores: list, category_of, self_information, unse
     }
 
 
-def coverage_interval(top_ids: list[list[str]], catalogue_size: int, resamples: int = 1000,
-                      seed: int = 0, level: float = 95.0) -> tuple[float, float]:
-    """Bootstrap interval for coverage, resampling impressions exactly as every other metric does.
+def coverage_resample_spread(top_ids: list[list[str]], catalogue_size: int, resamples: int = 1000,
+                             seed: int = 0, level: float = 95.0) -> tuple[float, float]:
+    """Spread of coverage across resampled impression sets. **Not a confidence interval.**
 
-    Coverage is one catalogue-wide number, not a per-impression average, so `bootstrap.ci`
-    cannot be applied to a vector. Instead each resample redraws the impressions with
-    replacement and recounts the distinct articles their top-k lists surface. The top-k lists
-    are held as one integer matrix so a resample is a single gather plus a boolean scatter, with
-    no per-resample set arithmetic. Padding for impressions shorter than k is index -1, which
-    lands in a spare last slot that is excluded from the count.
+    Coverage is a count of *distinct* articles, not a per-impression average, so the ordinary
+    bootstrap does not apply to it. Resampling n impressions with replacement draws only about
+    63% of the distinct impressions, and the articles the missing ones would have surfaced are
+    simply absent, so every resample undercounts. Measured on EB-NeRD small test: coverage is
+    0.2067 while this spread is [0.1875, 0.1920], which does not contain the value it is
+    supposedly an interval for. That is the tell, and it is why the report quotes coverage as a
+    point estimate and cites this spread only as the diagnostic that makes the bias visible.
+
+    Kept rather than deleted because a reader will otherwise ask why coverage has no interval
+    when every other metric does, and this is the answer with a number attached.
+
+    The top-k lists are held as one integer matrix so a resample is a gather plus a boolean
+    scatter. Padding for impressions shorter than k is index -1, which lands in a spare last
+    slot excluded from the count.
     """
     vocab: dict[str, int] = {}
     width = max((len(t) for t in top_ids), default=0)

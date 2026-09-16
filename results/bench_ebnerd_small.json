@@ -5,15 +5,17 @@
   "machine": {
     "cores": 8,
     "logical_cores": 12,
-    "ram_gb": 15.343231201171875,
+    "ram_gb": 15.343208312988281,
     "platform": "linux x86_64, no GPU"
   },
   "build": {
-    "bm25_index_build_s": 0.832290280000052,
-    "article_vector_load_s": 2.1660460900002363,
-    "faiss_index_build_s": 0.03931988600015757,
-    "rerank_train_s": 97.81603561500015,
-    "rerank_trees": 311
+    "bm25_index_build_s": 0.9941775979999647,
+    "article_vector_load_s": 3.261991895000051,
+    "faiss_index_build_s": 0.049971372000072733,
+    "rerank_model": "ebnerd_small_final.txt",
+    "rerank_model_load_s": 0.0228001300000642,
+    "rerank_trees": 399,
+    "rerank_features": 22
   },
   "bm25": {
     "postings": 297145,
@@ -56,170 +58,170 @@
   "feature_store": {
     "train": {
       "rows": 1882518,
-      "columns": 13,
-      "disk_bytes": 41313773,
-      "ram_bytes": 105421008
+      "columns": 25,
+      "disk_bytes": 85839283,
+      "ram_bytes": 195781872
     },
     "val": {
       "rows": 703229,
-      "columns": 13,
-      "disk_bytes": 15648451,
-      "ram_bytes": 39380824
+      "columns": 25,
+      "disk_bytes": 32010138,
+      "ram_bytes": 73135816
     },
     "test": {
       "rows": 2928942,
-      "columns": 13,
-      "disk_bytes": 64348628,
-      "ram_bytes": 164020752
+      "columns": 25,
+      "disk_bytes": 134185670,
+      "ram_bytes": 304609968
     },
     "total": {
       "rows": 5514689,
-      "disk_bytes": 121310852,
-      "ram_bytes": 308822584
+      "disk_bytes": 252035091,
+      "ram_bytes": 573527656
     }
   },
   "latency": {
     "tokenise": {
       "n": 2000,
-      "mean_ms": 0.8297945254962542,
-      "p50_ms": 0.6990179999775137,
-      "p95_ms": 1.2234184504904981,
-      "p99_ms": 3.1263723901611224,
-      "max_ms": 12.717622999844025
+      "mean_ms": 1.644866500500882,
+      "p50_ms": 1.4934714999981225,
+      "p95_ms": 2.360695799990253,
+      "p99_ms": 5.306091309961403,
+      "max_ms": 12.077718999989884
     },
     "bm25": {
       "n": 2000,
-      "mean_ms": 2.024892060503589,
-      "p50_ms": 1.3583580002887174,
-      "p95_ms": 5.640451149838554,
-      "p99_ms": 8.164405040624843,
-      "max_ms": 19.978738000645535
+      "mean_ms": 4.658834675498724,
+      "p50_ms": 3.823388000000705,
+      "p95_ms": 9.356631349976395,
+      "p99_ms": 12.406715560034627,
+      "max_ms": 22.234041999922738
     },
     "ann": {
       "n": 2000,
-      "mean_ms": 15.474346840994713,
-      "p50_ms": 13.553319499806094,
-      "p95_ms": 33.36816435021319,
-      "p99_ms": 45.40593380969767,
-      "max_ms": 61.7488650004816
+      "mean_ms": 19.999654321999344,
+      "p50_ms": 18.65035049996777,
+      "p95_ms": 35.539400549970416,
+      "p99_ms": 48.07742954998388,
+      "max_ms": 84.71068799997283
     },
     "features": {
       "n": 2000,
-      "mean_ms": 0.4053666805011744,
-      "p50_ms": 0.32383400002800045,
-      "p95_ms": 0.5299079999076639,
-      "p99_ms": 1.1807520300317262,
-      "max_ms": 19.607489000009082
+      "mean_ms": 0.6341534380002827,
+      "p50_ms": 0.5993470000476009,
+      "p95_ms": 0.7096403000048213,
+      "p99_ms": 2.0983412499856513,
+      "max_ms": 5.395132999979069
     },
     "rerank": {
       "n": 2000,
-      "mean_ms": 6.519677356498505,
-      "p50_ms": 5.023291000270547,
-      "p95_ms": 11.682361999964995,
-      "p99_ms": 29.47223340999699,
-      "max_ms": 38.06016399994405
+      "mean_ms": 17.249312560500016,
+      "p50_ms": 16.36912349999875,
+      "p95_ms": 26.84914359996924,
+      "p99_ms": 34.717328509999554,
+      "max_ms": 58.909768000035
     },
     "total": {
       "n": 2000,
-      "mean_ms": 25.254077463994236,
-      "p50_ms": 22.061605000089912,
-      "p95_ms": 48.94496414958667,
-      "p99_ms": 64.89810841082543,
-      "max_ms": 90.75348999976995
+      "mean_ms": 44.18682149649924,
+      "p50_ms": 42.45414700000083,
+      "p95_ms": 64.65555974997413,
+      "p99_ms": 77.30910608002091,
+      "max_ms": 114.88766800005124
     }
   },
   "cost": {
     "sla_p99_ms": 100.0,
-    "measured_p99_ms": 64.89810841082543,
+    "measured_p99_ms": 77.30910608002091,
     "meets_sla": true,
-    "headroom_x": 1.540876960033543,
-    "serial_qps_one_core": 45.32761782272525,
-    "capacity_qps_all_cores_projected": 362.620942581802,
+    "headroom_x": 1.29350868313614,
+    "serial_qps_one_core": 23.55482492676111,
+    "capacity_qps_all_cores_projected": 188.43859941408888,
     "cores": 8,
     "usd_per_vcpu_hour_assumed": 0.04,
-    "usd_per_1000_queries_projected": 0.00024512894444544346
+    "usd_per_1000_queries_projected": 0.00047171274444445367
   },
   "scaling": [
     {
       "fraction": 0.1,
       "articles": 2074,
-      "bm25_index_build_s": 0.09103629299988825,
+      "bm25_index_build_s": 0.12704519099997924,
       "bm25_postings": 30389,
       "bm25_ram_bytes": 311184,
       "faiss_ram_bytes": 6371328,
-      "tokenise_p50_ms": 0.2503550003893906,
-      "bm25_p50_ms": 0.1826394995987357,
-      "ann_p50_ms": 0.5875955002920819,
-      "features_p50_ms": 0.14547799992215005,
-      "rerank_p50_ms": 1.2590055002874578,
-      "total_p50_ms": 2.527782000015577,
-      "tokenise_p99_ms": 0.477007180079454,
-      "bm25_p99_ms": 0.44433194005250687,
-      "ann_p99_ms": 1.246388290401228,
-      "features_p99_ms": 0.3093323999291896,
-      "rerank_p99_ms": 2.5174762005553926,
-      "total_p99_ms": 4.523451089698936
+      "tokenise_p50_ms": 0.34370000003036694,
+      "bm25_p50_ms": 0.24306000000251515,
+      "ann_p50_ms": 0.7862709999812978,
+      "features_p50_ms": 0.2170594999597597,
+      "rerank_p50_ms": 2.3273770000287186,
+      "total_p50_ms": 3.9356070000167165,
+      "tokenise_p99_ms": 0.6336446599539158,
+      "bm25_p99_ms": 0.5426543099963509,
+      "ann_p99_ms": 1.6775766199464213,
+      "features_p99_ms": 0.4330074399751992,
+      "rerank_p99_ms": 4.286615879976806,
+      "total_p99_ms": 7.281393619987282
     },
     {
       "fraction": 0.25,
       "articles": 5184,
-      "bm25_index_build_s": 0.259621487000004,
+      "bm25_index_build_s": 0.4036970070000052,
       "bm25_postings": 73910,
       "bm25_ram_bytes": 705408,
       "faiss_ram_bytes": 15925248,
-      "tokenise_p50_ms": 0.30703250058650156,
-      "bm25_p50_ms": 0.29475399969669525,
-      "ann_p50_ms": 1.181024000288744,
-      "features_p50_ms": 0.15211900017675362,
-      "rerank_p50_ms": 1.2622160002138116,
-      "total_p50_ms": 3.291922500011424,
-      "tokenise_p99_ms": 0.6868576795568515,
-      "bm25_p99_ms": 0.8131559304729308,
-      "ann_p99_ms": 2.52169825999772,
-      "features_p99_ms": 0.3419614898302825,
-      "rerank_p99_ms": 2.544804510152968,
-      "total_p99_ms": 5.854826889890319
+      "tokenise_p50_ms": 0.40641399999685746,
+      "bm25_p50_ms": 0.4040795000150865,
+      "ann_p50_ms": 1.6571079999607718,
+      "features_p50_ms": 0.2312220000248999,
+      "rerank_p50_ms": 2.197958000010658,
+      "total_p50_ms": 4.987366999955611,
+      "tokenise_p99_ms": 0.7818117100475773,
+      "bm25_p99_ms": 0.9276738399466917,
+      "ann_p99_ms": 3.056488480025335,
+      "features_p99_ms": 0.39799827999445353,
+      "rerank_p99_ms": 3.943995019973272,
+      "total_p99_ms": 8.418241140082046
     },
     {
       "fraction": 0.5,
       "articles": 10369,
-      "bm25_index_build_s": 0.44455777799976204,
+      "bm25_index_build_s": 0.5419790309999826,
       "bm25_postings": 148638,
       "bm25_ram_bytes": 1357960,
       "faiss_ram_bytes": 31853568,
-      "tokenise_p50_ms": 0.3882849996443838,
-      "bm25_p50_ms": 0.4882609996457177,
-      "ann_p50_ms": 2.159331999337155,
-      "features_p50_ms": 0.1634075001675228,
-      "rerank_p50_ms": 1.2953370001014264,
-      "total_p50_ms": 4.582515499350848,
-      "tokenise_p99_ms": 0.9198814002502317,
-      "bm25_p99_ms": 1.2614921100885108,
-      "ann_p99_ms": 4.519416359826207,
-      "features_p99_ms": 0.3176522299145289,
-      "rerank_p99_ms": 3.220791939329501,
-      "total_p99_ms": 8.539727830539048
+      "tokenise_p50_ms": 0.5254390000004605,
+      "bm25_p50_ms": 0.6876350000197817,
+      "ann_p50_ms": 3.1334500000070875,
+      "features_p50_ms": 0.23584450002545054,
+      "rerank_p50_ms": 2.3456575000295743,
+      "total_p50_ms": 7.0049660000108815,
+      "tokenise_p99_ms": 1.0262342000169147,
+      "bm25_p99_ms": 1.2892322800189502,
+      "ann_p99_ms": 4.742849830074646,
+      "features_p99_ms": 0.3505226699860486,
+      "rerank_p99_ms": 3.7662111500321767,
+      "total_p99_ms": 10.217742239990457
     },
     {
       "fraction": 1.0,
       "articles": 20738,
-      "bm25_index_build_s": 0.7678789719993802,
+      "bm25_index_build_s": 0.9751645599999392,
       "bm25_postings": 297145,
       "bm25_ram_bytes": 2620264,
       "faiss_ram_bytes": 63707136,
-      "tokenise_p50_ms": 0.7844205001674709,
-      "bm25_p50_ms": 1.5372084999398794,
-      "ann_p50_ms": 11.3937004998661,
-      "features_p50_ms": 0.3533564999997907,
-      "rerank_p50_ms": 4.899212500276917,
-      "total_p50_ms": 20.057249500041507,
-      "tokenise_p99_ms": 2.1932772500440456,
-      "bm25_p99_ms": 7.503917680696758,
-      "ann_p99_ms": 22.821186369819767,
-      "features_p99_ms": 0.5383430900383223,
-      "rerank_p99_ms": 10.087748170544726,
-      "total_p99_ms": 33.47039331029918
+      "tokenise_p50_ms": 1.566271499996219,
+      "bm25_p50_ms": 3.933738000057474,
+      "ann_p50_ms": 21.106414499968196,
+      "features_p50_ms": 0.6187414999772045,
+      "rerank_p50_ms": 17.66000200001372,
+      "total_p50_ms": 46.8730750000077,
+      "tokenise_p99_ms": 7.933247020082488,
+      "bm25_p99_ms": 17.26813853003136,
+      "ann_p99_ms": 64.15825835003257,
+      "features_p99_ms": 3.7306685399789745,
+      "rerank_p99_ms": 46.58491958990449,
+      "total_p99_ms": 108.9967363399523
     }
   ],
-  "scaling_verdict": "Corpus grew 10.0x across the measured points. Per-stage p50 growth: `tokenise` 3.13x, `bm25` 8.42x, `ann` 19.39x, `features` 2.43x, `rerank` 3.89x.\n\n**`ann` is what breaks first.** It both grows with the corpus and dominates the total at full scale, and its growth is *super*-linear: 19.4x for a 10x corpus. `IndexFlatIP` is O(vectors x dim) per query, so linear is the most it should be. The excess is the memory hierarchy, not the algorithm: at the smallest scale the whole vector matrix fits in cache and at full scale it does not, so each query moves from cache-resident to streaming from RAM. That is exactly the regime where an approximate index earns its keep, and it says the 10x answer is a bandwidth problem rather than a FLOPs problem.\n\n**A1's answer no longer holds.** A1 found the per-impression Python loop was the bottleneck rather than the linear algebra. With the re-ranker in the path that is no longer true: the Python-side stages (`tokenise`, `features`, `rerank` over a fixed-size candidate pool) are all roughly flat in corpus size, so their share of the total shrinks as the catalogue grows. Making stage two cheaper buys nothing at scale; replacing the exact index with an approximate one is the only lever that matters.\n\n**Caveat on `tokenise` and `bm25`, stated because it changes how those two rows should be read.** Subsampling the corpus also shortens the query: the query is built from the titles of the user's history, and a history article dropped from the subsample contributes no title. Measured, the mean number of last-30 history items that still resolve to a title falls from 29.2 at full corpus to 2.3 at 10%. So those two rows conflate corpus size with query length and their growth factors are upper bounds on the true corpus effect, not estimates of it. `ann` is unaffected: a FAISS scan costs vectors x dim regardless of what the query vector contains, so the stage the verdict rests on is measured cleanly. Fixing this properly needs the query held fixed while only the index shrinks, which is a separate bench."
+  "scaling_verdict": "Corpus grew 10.0x across the measured points. Per-stage p50 growth: `tokenise` 4.56x, `bm25` 16.18x, `ann` 26.84x, `features` 2.85x, `rerank` 7.59x.\n\n**`ann` is what breaks first.** It both grows with the corpus and dominates the total at full scale, and its growth is *super*-linear: 26.8x for a 10x corpus. `IndexFlatIP` is O(vectors x dim) per query, so linear is the most it should be. The excess is the memory hierarchy, not the algorithm: at the smallest scale the whole vector matrix fits in cache and at full scale it does not, so each query moves from cache-resident to streaming from RAM. That is exactly the regime where an approximate index earns its keep, and it says the 10x answer is a bandwidth problem rather than a FLOPs problem.\n\n**A1's answer no longer holds.** A1 found the per-impression Python loop was the bottleneck rather than the linear algebra. With the re-ranker in the path that is no longer true: the Python-side stages (`tokenise`, `features`, `rerank` over a fixed-size candidate pool) are all roughly flat in corpus size, so their share of the total shrinks as the catalogue grows. Making stage two cheaper buys nothing at scale; replacing the exact index with an approximate one is the only lever that matters.\n\n**Caveat on `tokenise` and `bm25`, stated because it changes how those two rows should be read.** Subsampling the corpus also shortens the query: the query is built from the titles of the user's history, and a history article dropped from the subsample contributes no title. Measured, the mean number of last-30 history items that still resolve to a title falls from 29.2 at full corpus to 2.3 at 10%. So those two rows conflate corpus size with query length and their growth factors are upper bounds on the true corpus effect, not estimates of it. `ann` is unaffected: a FAISS scan costs vectors x dim regardless of what the query vector contains, so the stage the verdict rests on is measured cleanly. Fixing this properly needs the query held fixed while only the index shrinks, which is a separate bench."
 }

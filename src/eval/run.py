@@ -263,17 +263,22 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame,
             candidates, scores[system], category_of, info, unseen, articles.height
         )
         # Q5 asks for an interval on every reported metric, beyond-accuracy included.
-        # Diversity and novelty are per-impression, so they bootstrap like AUC; coverage is
-        # one catalogue-wide count and needs its own resampling, see coverage_interval.
+        # Diversity and novelty are per-impression averages, so they bootstrap like AUC.
+        # Coverage counts DISTINCT articles, which the bootstrap cannot interval: a resample
+        # misses ~37% of the impressions and therefore the articles only they surfaced, so
+        # every draw undercounts. The spread is recorded as a diagnostic, deliberately not
+        # named a CI, and the report quotes coverage as a point estimate. See
+        # beyond_accuracy.coverage_resample_spread.
         div_mean, div_lo, div_hi = bootstrap.ci(extra["diversity"])
         nov_mean, nov_lo, nov_hi = bootstrap.ci(extra["novelty"])
-        cov_lo, cov_hi = beyond_accuracy.coverage_interval(
+        cov_lo, cov_hi = beyond_accuracy.coverage_resample_spread(
             extra["top_ids"], articles.height, bootstrap.RESAMPLES, bootstrap.SEED
         )
         report["beyond_accuracy"][system] = {
             "diversity": div_mean, "diversity_ci": [div_lo, div_hi],
             "novelty": nov_mean, "novelty_ci": [nov_lo, nov_hi],
-            "coverage": float(extra["coverage"]), "coverage_ci": [cov_lo, cov_hi],
+            "coverage": float(extra["coverage"]),
+            "coverage_resample_spread": [cov_lo, cov_hi],
         }
         del extra
 
@@ -339,6 +344,7 @@ def render(report: dict) -> str:
         b = report["beyond_accuracy"][s]
         cell = lambda key: (f"{b[key]:.4f} [{b[key + '_ci'][0]:.4f}, {b[key + '_ci'][1]:.4f}]"
                             if key + "_ci" in b else f"{b[key]:.4f}")
+        # Coverage carries no interval on purpose; see the note above.
         out.append(f"| {s} | {cell('diversity')} | {cell('novelty')} | {cell('coverage')} |")
 
     if report["slices"]:

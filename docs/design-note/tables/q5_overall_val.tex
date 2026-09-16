@@ -1,1 +1,18 @@
-\begin{center}\pend{pending}: \texttt{q5\_overall\_val} not generated yet\end{center}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+system & AUC & MRR & MRR, all clicks & nDCG@5 & nDCG@10 \\
+\midrule
+\multicolumn{6}{@{}l}{\textit{\eb{} small, val}} \\
+BM25 (stage one) & \cellci{0.5205}{0.5180}{0.5231} & \cellci{0.3418}{0.3395}{0.3440} & \cellci{0.3414}{0.3391}{0.3436} & \cellci{0.3794}{0.3767}{0.3821} & \cellci{0.4607}{0.4586}{0.4629} \\[2pt]
+embeddings (stage one) & \cellci{0.5506}{0.5482}{0.5530} & \cellci{0.3594}{0.3572}{0.3617} & \cellci{0.3589}{0.3567}{0.3612} & \cellci{0.4017}{0.3991}{0.4044} & \cellci{0.4778}{0.4757}{0.4801} \\[2pt]
+fused (stage one) & \cellci{0.5528}{0.5503}{0.5553} & \cellci{0.3628}{0.3604}{0.3652} & \cellci{0.3623}{0.3600}{0.3647} & \cellci{0.4043}{0.4016}{0.4071} & \cellci{0.4807}{0.4785}{0.4830} \\[2pt]
+two-stage re-ranker & \cellcib{0.7885}{0.7867}{0.7906} & \cellcib{0.5729}{0.5703}{0.5755} & \cellcib{0.5724}{0.5698}{0.5750} & \cellcib{0.6411}{0.6387}{0.6437} & \cellcib{0.6715}{0.6695}{0.6736} \\[2pt]
+fused + lifetime popularity$^\ast$ & \cellci{0.5784}{0.5760}{0.5808} & \cellci{0.3707}{0.3684}{0.3731} & \cellci{0.3703}{0.3679}{0.3726} & \cellci{0.4184}{0.4159}{0.4210} & \cellci{0.4910}{0.4889}{0.4932} \\[2pt]
+\midrule
+\multicolumn{6}{@{}l}{\textit{\mind{} small, val}} \\
+BM25 (stage one) & \cellci{0.5840}{0.5816}{0.5864} & \cellci{0.3204}{0.3176}{0.3232} & \cellci{0.2777}{0.2753}{0.2803} & \cellci{0.2924}{0.2895}{0.2954} & \cellci{0.3494}{0.3467}{0.3522} \\[2pt]
+embeddings (stage one) & \cellci{0.6356}{0.6334}{0.6379} & \cellci{0.3422}{0.3396}{0.3449} & \cellci{0.2988}{0.2964}{0.3012} & \cellci{0.3202}{0.3175}{0.3231} & \cellci{0.3789}{0.3763}{0.3816} \\[2pt]
+fused (stage one) & \cellci{0.6390}{0.6368}{0.6412} & \cellci{0.3478}{0.3450}{0.3504} & \cellci{0.3031}{0.3007}{0.3056} & \cellci{0.3248}{0.3220}{0.3275} & \cellci{0.3836}{0.3811}{0.3863} \\[2pt]
+two-stage re-ranker & \cellcib{0.6997}{0.6976}{0.7018} & \cellcib{0.3977}{0.3950}{0.4005} & \cellcib{0.3422}{0.3397}{0.3448} & \cellcib{0.3729}{0.3701}{0.3759} & \cellcib{0.4313}{0.4287}{0.4339} \\[2pt]
+\bottomrule
+\end{tabular}

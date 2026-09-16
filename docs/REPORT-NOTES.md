@@ -8,18 +8,20 @@ not an oversight. Every number here also exists in `FACTS.md` (measurements) or 
 (experiments); this file is the narrative view, those two are the ledgers. If they disagree, the
 ledgers win.
 
-**Freshness, 2026-09-15.** This file currently holds two vintages and the boundary is marked
-explicitly rather than left to the reader:
+**Freshness, 2026-09-16. Nothing here is stale any more.** The metric tables, slices and
+beyond-accuracy figures that were flagged as 10-feature leftovers have been regenerated against
+the shipped 22-feature model, on both datasets, and MIND now has a full harness run of its own.
+The Q4 serving bench was also re-measured against the persisted final model rather than a
+retrained 10-feature stand-in.
 
-| section | state |
+| area | state |
 |---|---|
-| 2 headline, 3.1 grid, 5 Q9, 9.x findings | **current**, 22 features, test 0.7908 |
-| 2 full metric tables (val and test), `rerank - {bm25,emb,fused}` | **STALE**, 10-feature model |
+| section 2, all metrics, slices, beyond-accuracy, both datasets | **current**, regenerated 2026-09-16 |
+| section 3.1 grid, section 5 Q9, section 9.x findings | current, as of 2026-09-14 |
+| section 7 serving numbers | **superseded**, see `FACTS.md` 19.10 and 19.11 for the shipped model |
 
-The stale tables are flagged in place. They come from `src.eval.run` and need **regenerating, not
-editing**: the AUC column could be corrected by hand from the grid, but MRR, nDCG, diversity,
-novelty, coverage and every slice could not, and a half-corrected table is worse than a clearly
-stale one. Owner: Yash, `src/eval/` is his lane.
+Provenance for everything regenerated is in `FACTS.md` 19.6 to 19.11, including the cross-machine
+reproduction check and the two feature increments that now carry paired CIs.
 
 **Metric convention, stated once.** Ranking numbers are **per-impression AUC**: the Mann-Whitney
 AUC computed within each impression and averaged over impressions containing both classes.
@@ -64,129 +66,72 @@ present for the ranker to interact with. Section 6 has the measurement that make
 
 ---
 
-## 2. Headline results (EB-NeRD small)
+## 2. Headline results
 
-**Per-impression AUC. Selection on val, test scored once.**
+**REGENERATED 2026-09-16 by Yash against the shipped 22-feature model** (`src.eval.run
+--rerank-tag final`). The stale-table flags that stood here are discharged: every metric below,
+not only AUC, now describes the system the report headlines. Provenance in `FACTS.md` 19.6 to
+19.9.
 
-| system | val | test |
-|---|---|---|
-| stage one alone (bm25 + emb) | 0.5498 | 0.5430 |
-| **two-stage re-ranker (ships)** | **0.7885** | **0.7908** |
-| same model + serving-unavailable features | 0.7753 (16.2 arm) | |
-| what we could actually upload to Codabench | 0.7434 | 0.7351 |
+| system | EB-NeRD val | EB-NeRD test | MIND val | MIND test |
+|---|---|---|---|---|
+| fused retrieval (stage one) | 0.5528 | 0.5380 | 0.6390 | 0.6381 |
+| **two-stage re-ranker** | **0.7885** | **0.7908** | **0.6997** | **0.6964** |
+| rerank - fused | +0.2357 [+0.2329, +0.2385] | **+0.2528** [+0.2514, +0.2543] | +0.0607 [+0.0587, +0.0628] | **+0.0583** [+0.0565, +0.0603] |
 
-**The behavioural axis is worth +0.2223 AUC on test**, CI [+0.2209, +0.2238], over what
-Assignment 1 could do. That is the single most important number in the report.
+**Two baselines exist and are not interchangeable.** `rerank - fused` compares against the fused
+retrieval score (0.5380 EB-NeRD test). The ablation grid's `stage1_only` arm is a LightGBM trained
+on the two retrieval scores (0.5430) and reads +0.2223. Quote whichever, but say which.
 
-**This number has moved three times, each time for a reason worth stating**, and the history is
-part of the result rather than noise to be tidied away:
+**EB-NeRD small, test**
 
-| date | test | what changed |
-|---|---|---|
-| 2026-09-08 | 0.7429 | first complete two-stage system |
-| 2026-09-12 | 0.7461 | engagement leak fixed; test went **up**, see 9.1 |
-| 2026-09-14 | 0.7523 | 6 h causal-popularity window shipped |
-| 2026-09-14 | 0.7653 | seven features incl. within-impression ranks |
-| **2026-09-14** | **0.7908** | **five exposure features** |
-
-For scale, A1's best complete systems were 0.5397 (EB-NeRD small test) and 0.6503 (MIND
-Codabench). `pop_causal` **alone** reaches 0.6954, above both.
-
-**Stage two against every stage-one baseline**, paired bootstrap, `src.eval.run`. Reported
-against all three rather than only the strongest, because "beats the best baseline" and "beats
-the baseline we happened to ship" are different claims.
-
-> **STALE, owner Yash.** The three rows below were produced by `src.eval.run` against re-ranker
-> output that has since been regenerated four times. The *shape* of the finding is unchanged and
-> the sign is not in doubt, but the magnitudes are from the 10-feature model. Regenerating them is
-> a single harness re-run, not an edit.
-
-| comparison | val AUC | test AUC | significant |
-|---|---|---|---|
-| rerank - bm25 | +0.2370 [+0.2339, +0.2402] | +0.2322 [+0.2306, +0.2338] | yes |
-| rerank - emb | +0.2068 [+0.2039, +0.2095] | +0.2032 [+0.2018, +0.2048] | yes |
-| rerank - fused | +0.2047 [+0.2018, +0.2076] | +0.2049 [+0.2034, +0.2064] | yes |
-
-The current `rerank - stage1_only` figure, measured directly by the ablation grid rather than the
-harness, is **+0.2138 val and +0.2223 test** [+0.2209, +0.2238].
-
-The trainer computes per-impression AUC in independent code and agrees with the harness to four
-decimals on both splits. That agreement is the check that the flat per-candidate table was
-reshaped into `candidates` order correctly: a mis-ordered join yields a plausible number rather
-than an error, so it is verified against a figure produced elsewhere rather than assumed.
-
-**The full metric set (Q5), val, with CIs in `results/ebnerd_small_val.md`.**
-
-> **STALE, owner Yash.** Both metric tables below (val and test) quote `rerank` at 0.7575 and
-> 0.7429, which is the 10-feature model from before the leak fix. Every non-AUC column
-> (MRR, nDCG, diversity, novelty, coverage) and every slice is equally affected, since all of them
-> are computed from the same scored output. These need **regenerating from `src.eval.run`**, not
-> editing by hand: the AUC column could be corrected from the grid, but the rest could not, and a
-> half-corrected table is worse than a clearly stale one.
-
-| system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |
-|---|---|---|---|---|---|
-| bm25 | 0.5205 | 0.3418 | 0.3414 | 0.3794 | 0.4607 |
-| emb | 0.5506 | 0.3594 | 0.3589 | 0.4017 | 0.4778 |
-| fused | 0.5528 | 0.3628 | 0.3623 | 0.4043 | 0.4807 |
-| **rerank** | **0.7575** | **0.5319** | **0.5314** | **0.5967** | **0.6341** |
-| fused+popularity | 0.5784 | 0.3707 | 0.3703 | 0.4184 | 0.4910 |
-
-The two MRR columns differ by only ~0.0005 here, which is the confirming evidence for 9.2:
-EB-NeRD is 0.5% multi-click, so the two definitions almost coincide. On MIND, at 28.8%
-multi-click, the same comparison moves MRR by -0.0415.
-
-**The same set on test, which section 9.1 makes the numbers to quote for now**, since the
-val figures rest partly on contaminated engagement features and the test ones do not:
-
-| system | AUC | MRR (first click) | MRR (all clicks) | nDCG@5 | nDCG@10 |
+| system | AUC | MRR (first) | MRR (all) | nDCG@5 | nDCG@10 |
 |---|---|---|---|---|---|
 | bm25 | 0.5107 | 0.3257 | 0.3253 | 0.3577 | 0.4409 |
 | emb | 0.5397 | 0.3492 | 0.3487 | 0.3831 | 0.4627 |
 | fused | 0.5380 | 0.3474 | 0.3470 | 0.3813 | 0.4613 |
-| **rerank** | **0.7429** | **0.5149** | **0.5143** | **0.5750** | **0.6140** |
+| rerank | 0.7908 | 0.5685 | 0.5678 | 0.6330 | 0.6650 |
 | fused+popularity | 0.5797 | 0.3688 | 0.3684 | 0.4101 | 0.4841 |
 
-Test tracks val closely on every system, which is the evidence that the contamination in 9.1 has
-a bounded effect rather than carrying the result: `rerank` falls only 0.7575 to 0.7429, and
-`rerank - fused` is +0.2049 on test against +0.2047 on val.
+**MIND small, test**
 
-### Slices: where the gain actually lands
-
-cold = history <= 42 clicks; head = clicked article with >= 379 train clicks. Sizes printed
-because a badly-placed threshold can silently select nearly everything.
-
-| slice | n | bm25 | fused | rerank | fused+popularity |
+| system | AUC | MRR (first) | MRR (all) | nDCG@5 | nDCG@10 |
 |---|---|---|---|---|---|
-| cold | 6,463 | 0.5281 | 0.5612 | **0.7836** | 0.5843 |
-| warm | 57,902 | 0.5196 | 0.5518 | **0.7545** | 0.5778 |
-| head | 1,094 | 0.5091 | 0.6638 | **0.7046** | 0.7192 |
-| tail | 63,271 | 0.5207 | 0.5509 | **0.7584** | 0.5760 |
+| bm25 | 0.5685 | 0.3108 | 0.2693 | 0.2868 | 0.3479 |
+| emb | 0.6369 | 0.3510 | 0.3061 | 0.3341 | 0.3937 |
+| fused | 0.6381 | 0.3536 | 0.3075 | 0.3361 | 0.3956 |
+| rerank | 0.6964 | 0.4027 | 0.3459 | 0.3854 | 0.4458 |
 
-* **The re-ranker is better on cold users than warm** (0.7836 vs 0.7545), inverting the usual
-  expectation. Its top feature by gain is `pop_causal`, which needs no history at all: a user
-  with no history is exactly where a popularity prior is the best available signal and where the
-  history-driven stage-one systems have least to work with.
-* **On head articles the leaky system beats the honest one** (0.7192 vs 0.7046), the only slice
-  where that happens, and exactly where you would predict it: head articles are by definition
-  those whose lifetime `total_inviews` is largest. 1,094 impressions with overlapping intervals,
-  so a caution rather than a finding.
+Validation tables are in `results/{ebnerd,mind}_small_val.md`.
 
-### Beyond accuracy (top-10, val): the gain is not free
+### Slices, test split
 
-| system | diversity | novelty | coverage |
-|---|---|---|---|
-| bm25 | 0.8039 | 16.3525 | 0.1142 |
-| fused | 0.7916 | 16.3909 | 0.1131 |
-| rerank | 0.8006 | **16.4824** | **0.1030** |
-| fused+popularity | 0.7963 | 16.3572 | 0.1099 |
+| slice | EB-NeRD fused | EB-NeRD rerank | MIND fused | MIND rerank |
+|---|---|---|---|---|
+| cold | 0.5449 | 0.7910 | 0.5601 | 0.6480 |
+| warm | 0.5372 | 0.7908 | 0.6470 | 0.7019 |
+| zero_history | n/a | n/a | 0.5125 | 0.6288 |
+| head | 0.6353 | 0.5530 | 0.6347 | 0.7884 |
+| tail | 0.5377 | 0.7916 | 0.6381 | 0.6953 |
 
-The re-ranker buys +0.20 AUC at a real cost in **catalogue coverage**: 0.1131 -> 0.1030, about
-9% fewer distinct articles ever reaching a top-10. Its novelty is the highest of any system, so
-it is not collapsing onto popular items; it concentrates on a narrower set of individually
-less-clicked articles. Stated as a tradeoff rather than reporting the accuracy gain alone.
+**The EB-NeRD head slice reverses across the split boundary**: rerank 0.7080 beats fused 0.6638 on
+val, and loses 0.5530 to 0.6353 on test, both with disjoint intervals. No directional claim is
+made. MIND, whose popularity window is unbounded rather than 6 h, posts its largest slice gain on
+head. **Cold and warm are now indistinguishable on EB-NeRD**, unlike the 10-feature model.
 
----
+### Beyond accuracy, test split
+
+| system | EB-NeRD diversity | novelty | coverage | MIND diversity | novelty | coverage |
+|---|---|---|---|---|---|---|
+| bm25 | 0.7968 | 16.966 | 0.2067 | 0.8428 | 16.927 | 0.0536 |
+| emb | 0.7803 | 17.007 | 0.2050 | 0.8215 | 16.926 | 0.0523 |
+| fused | 0.7820 | 16.999 | 0.2051 | 0.8182 | 16.925 | 0.0529 |
+| rerank | 0.7901 | 17.084 | 0.2026 | 0.8008 | 17.003 | 0.0494 |
+
+The re-ranker has the highest novelty on both datasets and costs 3 to 7% of catalogue coverage.
+**Coverage carries no interval**: it counts distinct articles, and a bootstrap resample holds only
+~63% of the impressions, so every draw undercounts. Measured: coverage 0.2067 against a resampled
+spread of [0.1875, 0.1920], which excludes the value it describes. See `FACTS.md` 19.9.
 
 ## 3. Ablations: what worked
 

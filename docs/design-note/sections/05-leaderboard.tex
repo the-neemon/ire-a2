@@ -32,16 +32,16 @@ split. The \mind{} upload uses 11 features and scores 0.6460 on our \mind{} test
 \end{table}
 
 \textbf{Scale and validation.} The \eb{} test set has 13,536,710 impressions and 205,925,868
-candidate pairs; \mind{}-large test has 2,370,727 impressions. Neither fits in memory, so
-prediction streams in slices. Scoring \eb{} took 3\,h\,06\,m at 44\,GB peak memory on a cluster
-node; three earlier implementations were abandoned after their measured rates projected 38, 90 and
-135 hours, and the fix that mattered most was batching the LightGBM call (13.5M calls became 541).
-Each rewrite was checked to produce byte-identical output. Because \mind{} allows one submission
-per day, every file passes an offline validator before upload: exact inner filename
-(\texttt{prediction.txt} for \mind{}, \texttt{predictions.txt} for \eb{}), nothing else in the zip,
-row count, row order, and that each row is a permutation of $1..n$. Row order matters most, since
-ranks are positional and a reordered file scores as a plausible bad model instead of failing. The
-validator was itself checked by injecting five violations and confirming each one fails.
+candidate pairs; \mind{}-large has 2,370,727. Neither fits in memory, so prediction streams in
+slices. Scoring \eb{} took 3\,h\,06\,m at 44\,GB peak on a cluster node, after three earlier
+implementations were abandoned once their measured rates projected 38, 90 and 135 hours; batching
+the LightGBM call, 13.5M invocations down to 541, was the fix that mattered. Each rewrite was
+checked for byte-identical output. Because \mind{} allows one submission per day, every file
+passes an offline validator first: exact inner filename (\texttt{prediction.txt} for \mind{},
+\texttt{predictions.txt} for \eb{}), nothing else in the zip, row count, row order, and each row a
+permutation of $1..n$. Row order matters most, since ranks are positional and a reordered file
+scores as a plausible bad model rather than failing. The validator was itself checked by injecting
+five violations and confirming each one fails.
 
 \begin{table}[tb]
 \centering\small
