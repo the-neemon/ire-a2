@@ -115,8 +115,18 @@ for line in open(SRC):
                     bits.append(f'{k}: {trunc(str(inp[k]), 400)}')
             rows.append(('tool', ts, clean(f'**{name}**\n' + '\n'.join(bits))))
 
+# Required, not defaulted. This was hardcoded to one name, which silently mislabelled a second
+# session as its author. A wrong attribution in a disclosure document is worse than a missing one,
+# so an absent OWNER is an error rather than a guess. Read here, after the `rows, stats` marker,
+# because test_redaction.py execs only the section above it.
+OWNER = os.environ.get('OWNER', '').strip()
+if not OWNER:
+    sys.exit("OWNER is required, e.g. OWNER='Naman Singhal' python3 export_transcript.py in.jsonl out.md")
+SESSION = os.path.basename(SRC).split('.')[0][:8]
+
 with open(OUT, 'w') as fh:
-    fh.write('# Session transcript: Yash More\n\n')
+    fh.write(f'# Session transcript: {OWNER}\n\n')
+    fh.write(f'Session `{SESSION}`.\n\n')
     fh.write(f'Exported {datetime.now().strftime("%Y-%m-%d")} from the Claude Code session log by '
              '`docs/ai-usage/export_transcript.py`.\n\n')
     fh.write(f'- **{stats["prompts"]}** human prompts, reproduced in full and verbatim\n')

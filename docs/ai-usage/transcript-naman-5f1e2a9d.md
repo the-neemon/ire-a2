@@ -1,4 +1,6 @@
-# Session transcript: Yash More
+# Session transcript: Naman Singhal
+
+Session `5f1e2a9d`.
 
 Exported 2026-09-16 from the Claude Code session log by `docs/ai-usage/export_transcript.py`.
 

@@ -1,5 +1,7 @@
 # Session transcript: Yash More
 
+Session `8940d1d4`.
+
 Exported 2026-09-16 from the Claude Code session log by `docs/ai-usage/export_transcript.py`.
 
 - **14** human prompts, reproduced in full and verbatim
