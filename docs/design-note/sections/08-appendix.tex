@@ -1,0 +1,82 @@
+\section{Full ablation grids}
+\label{app:grids}
+
+Each arm removes one feature and retrains the same model; \feat{stage1_only} keeps only the two
+retrieval scores and \feat{pop_only} only click popularity. A positive ``full $-$ arm'' means the
+removed feature helped. Bold marks intervals that exclude zero. The grids were run on the model
+before exposure features were added (17 features on \eb{}, 12 on \mind{}), which is why their
+full-model AUC is below the shipped system's.
+
+\begin{table}[H]
+\centering\scriptsize
+\input{tables/ablation_ebnerd}
+\caption{\eb{} small, 17-feature model, 64,365 val and 244,647 test impressions.}
+\end{table}
+
+\begin{table}[H]
+\centering\scriptsize
+\input{tables/ablation_mind}
+\caption{\mind{} small, 12-feature model, 61,894 val and 73,152 test impressions.}
+\end{table}
+
+\section{Isolated-feature sweeps}
+\label{app:sweeps}
+
+Per-impression AUC of one feature used alone as the score, on val. An isolated score cannot be
+absorbed by a correlated neighbour, which makes it a clean screen, but a winner here is only a
+candidate: the popularity window gained $+$0.0447 in isolation and $+$0.0034 val inside the ranker.
+
+\begin{table}[H]
+\centering\small
+\input{tables/sweeps}
+
+\medskip
+\input{tables/sweep_history}
+\caption{Top left: the click-popularity window. Top right: dropping history clicks with low scroll
+depth (\eb{}, 100 clicks). Middle: the recency half-life, flat to four decimals over a 168$\times$
+range. Bottom: history length and read-time weighting of the user vector on clean history.}
+\end{table}
+
+\section{Validation-split evaluation}
+\label{app:val}
+
+\begin{table}[H]
+\centering\scriptsize
+\input{tables/q5_overall_val}
+\caption{All accuracy metrics on val with 95\% intervals.}
+\end{table}
+
+\section{Reproducing the numbers}
+\label{app:repro}
+
+Every table in this note is generated from the results files by
+\texttt{docs/design-note/make\_tables.py}; every measured number also has a row in
+\texttt{docs/FACTS.md} or \texttt{docs/ABLATIONS.md} with the command that produced it.
+
+\begin{small}
+\begin{verbatim}
+make venv && make download
+python -m src.pipeline.split ebnerd_small        # one dataset per process
+python -m src.retrieval.bm25 ebnerd_small
+python -m src.retrieval.embeddings ebnerd_small
+python -m src.retrieval.fuse ebnerd_small
+python -m src.features.build ebnerd_small
+python -m src.rerank.train ebnerd_small --tag final
+python -m src.eval.run ebnerd_small --rerank-tag final
+python -m src.eval.compare_reranks ebnerd_small ladder17 final
+python -m src.eval.bench ebnerd_small --requests 2000 \
+       --scale-points 0.1 0.25 0.5 1.0 --model-tag final
+python -m pytest tests/
+python -m src.submission.validate ebnerd submissions/ebnerd_predictions.zip
+\end{verbatim}
+\end{small}
+
+\section{Leaderboard screenshots}
+\label{app:screenshots}
+
+\begin{center}
+\fbox{\parbox[c][4.2cm][c]{0.46\linewidth}{\centering\pend{Screenshot pending}\\[2pt]\mind{},
+Codabench competition 13967}}\hfill
+\fbox{\parbox[c][4.2cm][c]{0.46\linewidth}{\centering\pend{Screenshot pending}\\[2pt]\eb{},
+Codabench competition 2469}}
+\end{center}

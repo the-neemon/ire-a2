@@ -1,0 +1,70 @@
+\section{Observations that generalise}
+\label{sec:lessons}
+
+\textbf{One metric name can hide two definitions.} This happened three times. Our retrieval stage
+printed a \emph{hit rate} (share of impressions with at least one clicked article retrieved) under
+the label \emph{recall} (share of clicked articles retrieved); on \mind{} test they read 0.0333 and
+0.0226 and reconcile exactly, $0.0333 \times 0.6775 = 0.0226$. \mind{}'s official MRR averages over
+all clicks while ours credited the first, 0.2693 against 0.3108 for one ranking. And two
+implementations of ``the user vector'' read different history files, which is how we found the
+leak in Section~\ref{sec:q9}. In each case the number reproduced on one dataset and not the other,
+because the definitions only diverge when impressions have several clicks (28.8\% on \mind{},
+0.5\% on \eb{}). When a number fails on exactly one dataset, check the definition first.
+
+\textbf{A feature's isolated score is not its contribution.} Impression size, \feat{n_cands}, is
+the same for every candidate in an impression, so on its own it scores exactly 0.5000, and yet
+removing it costs $-$0.0066 test AUC, the second largest loss in the grid. It helps only through
+interactions, by telling the model how crowded the impression is. The reverse also happens:
+freshness has high LightGBM split gain but removing it changes almost nothing, because popularity
+already carries most of the same information. We therefore quote ablation deltas, never importance.
+
+\textbf{Leave-one-out deltas do not add up.} In the 17-feature grid, removing \feat{pop_causal}
+alone or \feat{user_read} alone makes the model slightly better on val. Removing both is
+significantly \emph{worse} on both splits ($-$0.0005 val, $-$0.0007 test), and keeping only the
+features with significant positive deltas loses 0.0240 test AUC. Correlated features cover for
+each other, so a single-feature ablation answers ``what does this add given the rest'' and not
+``what should we keep''. We ship all features.
+
+\textbf{An underpowered result is not a null result.} Our stage-one ablations were first run on
+the 10$\times$ smaller \eb{} demo set, where two results had intervals spanning zero. At full
+\feat{ebnerd_small} scale they resolved in opposite directions: dropping the abstract from BM25
+went from $+$0.0009 [$-$0.0062, $+$0.0081] to a real $+$0.0025 [$+$0.0002, $+$0.0047], while Danish
+stemming stayed flat within $\pm$0.0004 at intervals tight enough to exclude the $+$22 to $+$36\%
+recall gain Assignment~1 had claimed. We now re-run any interval that spans zero at larger scale
+before recording a verdict.
+
+\textbf{A check must test the artifact, not a proxy for it.} We found five checks that passed
+without checking anything: a \mind{} leakage test that filtered every row away (a null list is not
+an empty list), an anti-gaming guard that scanned zero files after a directory move, an install
+check that trusted an exit code while the import was broken, a job monitor that matched its own
+command line, and leakage tests that never looked at the engagement arrays the model reads. Every
+test is now required to fail when a violation is injected before it counts.
+
+\section{Limitations and open questions}
+\label{sec:limits}
+
+\begin{itemize}
+\item \textbf{Parts of Q1 are not modelled.} We have no within-session features (EB-NeRD's session
+  id is unused) and no explicit position-bias correction. Exponential time decay on the history
+  was neutral to harmful at every setting in Assignment~1 and was not revisited inside the ranker.
+\item \textbf{The baseline covers one dataset.} NRMS was reproduced and beaten on \eb{} only; a
+  \mind{} baseline was not reproduced. The history length of 100 that our sweep favours was not
+  tried in NRMS, whose cost grows quadratically with it.
+\item \textbf{The final model may be under-trained.} The 22-feature model's best iteration is 399
+  of a 400-round cap, so it was still improving when training stopped; its reported gain is more
+  likely understated than inflated.
+\item \textbf{Approximate search is motivated but unmeasured.} Section~\ref{sec:serving} shows the
+  exact index is what breaks at 10$\times$, but we did not measure the recall an IVF or HNSW index
+  would cost at our catalogue size.
+\item \textbf{\mind{} gains little from behaviour.} With five features missing and a stronger stage
+  one, the \mind{} re-ranker's gain is a small fraction of \eb{}'s. This is a property of the data,
+  but it means our strongest claims are about \eb{}.
+\item \textbf{One stage-one improvement is unshipped.} Title-only BM25 documents gain ranking AUC on
+  both datasets but cost \eb{} val recall@200 ($-$0.0024), which is exactly what stage two consumes.
+\item \textbf{Two leakage tests are stale against the shipped configuration.} They recompute
+  popularity over all past clicks, while the shipped feature counts only the last 6 hours, so they
+  fail on a legitimately smaller number. Neither can distinguish a narrower window from a leak. We
+  re-verified the boundary independently instead, comparing 4,334 rows against a recount by a
+  different code path, 4,225 of them on articles with clicks at or after the impression: zero
+  disagreements, and zero rows counting anything at or after $t$.
+\end{itemize}

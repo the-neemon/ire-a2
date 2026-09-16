@@ -1,0 +1,78 @@
+% Design note, CS4.406 Assignment 2. Build from this directory:
+%   python make_tables.py && pdflatex design-note.tex && pdflatex design-note.tex
+% Every table under tables/ and every number macro in tables/numbers.tex is generated from
+% results/*.json by make_tables.py; none is typed by hand.
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage[shortlabels]{enumitem}
+\usepackage[font=small,labelfont=bf,skip=4pt]{caption}
+\usepackage{titlesec}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!50!black]{hyperref}
+
+\setlist{nosep,leftmargin=*}
+\titlespacing*{\section}{0pt}{9pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{2pt}
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{0pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\renewcommand{\arraystretch}{1.08}
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.12}
+\renewcommand{\floatpagefraction}{0.75}
+
+% Short forms used throughout.
+\newcommand{\eb}{EB-NeRD}
+\newcommand{\mind}{MIND}
+\newcommand{\feat}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\pend}[1]{\textcolor{red!70!black}{\textbf{[#1]}}}
+% A term being defined for the first time.
+\newcommand{\term}[1]{\textit{#1}}
+% A metric cell: mean on the first line, its 95% interval beneath in small type.
+\newcommand{\cellci}[3]{\begin{tabular}[t]{@{}c@{}}#1\\[-2pt]{\scriptsize[#2, #3]}\end{tabular}}
+\newcommand{\cellcib}[3]{\begin{tabular}[t]{@{}c@{}}\textbf{#1}\\[-2pt]{\scriptsize[#2, #3]}\end{tabular}}
+% A difference cell: the signed delta, with its already-formatted interval beneath.
+\newcommand{\dcell}[2]{\begin{tabular}[t]{@{}c@{}}#1\\[-2pt]{\scriptsize #2}\end{tabular}}
+
+\IfFileExists{tables/numbers.tex}{\input{tables/numbers.tex}}{}
+
+\title{\vspace{-2.4em}{\Large\textbf{Learning from Click-Logs: a Two-Stage News Recommender
+for \eb{} and \mind{}}}\\[5pt]
+\normalsize Design note, CS4.406 Information Retrieval \& Extraction, Assignment 2}
+\author{Naman Singhal (2024114013) \qquad Yash More (2024114004)}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+\vspace{-2em}
+
+\input{sections/01-summary}
+\input{sections/02-system}
+\input{sections/03-results}
+\input{sections/04-serving}
+\input{sections/05-leaderboard}
+\input{sections/06-lessons}
+
+\input{sections/07-references}
+
+\clearpage
+\appendix
+\input{sections/08-appendix}
+
+\end{document}

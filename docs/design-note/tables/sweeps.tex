@@ -1,0 +1,33 @@
+\begin{tabular}[t]{@{}lcc@{}}
+\toprule
+popularity window & \eb{} & \mind{} \\
+\midrule
+1 h & 0.7082 & 0.5622 \\
+6 h & 0.7349 & 0.5475 \\
+24 h & 0.7254 & 0.5516 \\
+72 h & 0.7045 & 0.5506 \\
+168 h & 0.6902 & 0.5502 \\
+unbounded & 0.6902 & 0.5502 \\
+\bottomrule
+\end{tabular}\hfill
+\begin{tabular}[t]{@{}lcc@{}}
+\toprule
+min.\ scroll depth & AUC & history kept \\
+\midrule
+0\% & 0.5545 & 100.0\% \\
+10\% & 0.5521 & 88.5\% \\
+25\% & 0.5559 & 78.5\% \\
+50\% & 0.5590 & 58.4\% \\
+75\% & 0.5606 & 46.7\% \\
+90\% & 0.5609 & 41.1\% \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+recency half-life & 1\,h & 3\,h & 6\,h & 12\,h & 24\,h & 48\,h & 96\,h & 168\,h \\
+\midrule
+\eb{} AUC & 0.5088 & 0.5087 & 0.5087 & 0.5088 & 0.5087 & 0.5088 & 0.5088 & 0.5088 \\
+\bottomrule
+\end{tabular}

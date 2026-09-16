@@ -1,0 +1,32 @@
+{
+  "val": {
+    "dataset": "ebnerd_small",
+    "split": "val",
+    "a": "ladder17",
+    "b": "final",
+    "n_impressions": 64365,
+    "auc_a": 0.763586353144784,
+    "auc_b": 0.7885139048477084,
+    "b_minus_a": 0.024927551702924534,
+    "ci_lo": 0.023809116907566277,
+    "ci_hi": 0.026090659643675806,
+    "significant": true,
+    "resamples": 1000,
+    "seed": 0
+  },
+  "test": {
+    "dataset": "ebnerd_small",
+    "split": "test",
+    "a": "ladder17",
+    "b": "final",
+    "n_impressions": 244647,
+    "auc_a": 0.7652663886162866,
+    "auc_b": 0.790773043875094,
+    "b_minus_a": 0.02550665525880744,
+    "ci_lo": 0.024925231103009843,
+    "ci_hi": 0.026064981663104024,
+    "significant": true,
+    "resamples": 1000,
+    "seed": 0
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "tag": "ladder10",
+  "features": [
+    "bm25",
+    "emb",
+    "pop_causal",
+    "age_hours",
+    "recency",
+    "cat_match",
+    "hist_len",
+    "user_read",
+    "user_scroll",
+    "engage_sim"
+  ],
+  "best_iteration": 124,
+  "val_auc": 0.7523115806964317,
+  "test_auc": 0.7523078346480432,
+  "importance": {
+    "pop_causal": 649522.9343643188,
+    "recency": 118858.99570846558,
+    "cat_match": 90634.69269752502,
+    "engage_sim": 80065.57211494446,
+    "age_hours": 68947.75431442261,
+    "bm25": 21973.091274261475,
+    "emb": 7584.362888336182,
+    "hist_len": 7096.833156585693,
+    "user_read": 5768.9725341796875,
+    "user_scroll": 3568.006507873535
+  }
+}

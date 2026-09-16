@@ -157,7 +157,8 @@ def leaky_scores(df: pl.DataFrame, articles: pl.DataFrame) -> list[np.ndarray] |
     return out
 
 
-def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame) -> dict:
+def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame,
+             rerank_tag: str = RERANK_TAG) -> dict:
     df = load(name, split)
     systems = list(SYSTEMS)
 
@@ -165,7 +166,7 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
     # the re-ranker covers, which is what keeps the comparison paired: a bootstrap over two
     # different impression sets is not a paired test. The restriction is reported rather than
     # hidden, as `impressions_before_rerank_join` in the report.
-    reranked = flat_scores(name, split)
+    reranked = flat_scores(name, split, rerank_tag)
     before = df.height
     if reranked is not None:
         df = df.join(reranked, on="impression_id", how="inner")
@@ -212,6 +213,7 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
         "impressions": df.height, "scored": int(keep.sum()),
         "impressions_before_rerank_join": before,
         "systems": systems,
+        "rerank_tag": rerank_tag if RERANK in systems else None,
         "cold_threshold_history_len": cold_threshold,
         "head_threshold_train_clicks": head_threshold,
         "overall": {}, "slices": {}, "beyond_accuracy": {}, "comparisons": {},
@@ -260,11 +262,20 @@ def evaluate(name: str, split: str, train_clicked: list, articles: pl.DataFrame)
         extra = beyond_accuracy.evaluate(
             candidates, scores[system], category_of, info, unseen, articles.height
         )
+        # Q5 asks for an interval on every reported metric, beyond-accuracy included.
+        # Diversity and novelty are per-impression, so they bootstrap like AUC; coverage is
+        # one catalogue-wide count and needs its own resampling, see coverage_interval.
+        div_mean, div_lo, div_hi = bootstrap.ci(extra["diversity"])
+        nov_mean, nov_lo, nov_hi = bootstrap.ci(extra["novelty"])
+        cov_lo, cov_hi = beyond_accuracy.coverage_interval(
+            extra["top_ids"], articles.height, bootstrap.RESAMPLES, bootstrap.SEED
+        )
         report["beyond_accuracy"][system] = {
-            "diversity": float(extra["diversity"].mean()),
-            "novelty": float(extra["novelty"].mean()),
-            "coverage": float(extra["coverage"]),
+            "diversity": div_mean, "diversity_ci": [div_lo, div_hi],
+            "novelty": nov_mean, "novelty_ci": [nov_lo, nov_hi],
+            "coverage": float(extra["coverage"]), "coverage_ci": [cov_lo, cov_hi],
         }
+        del extra
 
     for slice_name, mask in slices.items():
         # Below ~30 impressions the bootstrap interval is so wide it says nothing, so I omit
@@ -326,7 +337,9 @@ def render(report: dict) -> str:
             "| system | diversity | novelty | coverage |", "|---|---|---|---|"]
     for s in systems:
         b = report["beyond_accuracy"][s]
-        out.append(f"| {s} | {b['diversity']:.4f} | {b['novelty']:.4f} | {b['coverage']:.4f} |")
+        cell = lambda key: (f"{b[key]:.4f} [{b[key + '_ci'][0]:.4f}, {b[key + '_ci'][1]:.4f}]"
+                            if key + "_ci" in b else f"{b[key]:.4f}")
+        out.append(f"| {s} | {cell('diversity')} | {cell('novelty')} | {cell('coverage')} |")
 
     if report["slices"]:
         out += ["", "## AUC by slice", "",
@@ -387,6 +400,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("datasets", nargs="*", default=list(config))
     parser.add_argument("--splits", nargs="+", default=["val", "test"])
+    # Which trained re-ranker to score, by the tag `src.rerank.train --tag` wrote it under.
+    # Defaults to "full" so existing invocations are unchanged; the design note's Q5 tables
+    # come from `--rerank-tag final`, the shipped feature set, so a later ablation run under
+    # a different tag cannot silently become the reported system.
+    parser.add_argument("--rerank-tag", default=RERANK_TAG)
     args = parser.parse_args()
 
     RESULTS.mkdir(exist_ok=True)
@@ -395,7 +413,7 @@ def main() -> None:
         train_clicked = pl.read_parquet(PROC / name / "impressions_train.parquet")["clicked"].to_list()
         for split in args.splits:
             print(f"{name} {split} ...", flush=True)
-            report = evaluate(name, split, train_clicked, articles)
+            report = evaluate(name, split, train_clicked, articles, args.rerank_tag)
             (RESULTS / f"{name}_{split}.json").write_text(json.dumps(report, indent=2))
             (RESULTS / f"{name}_{split}.md").write_text(render(report))
             print(f"  -> results/{name}_{split}.md")

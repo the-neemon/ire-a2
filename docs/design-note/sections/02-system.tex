@@ -1,0 +1,149 @@
+\section{What we built}
+\label{sec:system}
+
+The task is news recommendation from click-logs. The unit of everything is an \term{impression}:
+at time $t$ a user is shown a list of \term{candidate} articles and clicks some of them. Our job is
+to order each impression's candidates so the clicked ones come first. We extend our two
+Assignment-1 retrieval systems (lexical and semantic) with the \term{behavioural} signal in the
+logs: what users clicked, how often each article has been clicked or shown, and how fresh it is.
+
+\subsection{Data and evaluation protocol}
+
+\begin{table}[tb]
+\centering\small
+\begin{tabular}{@{}lrcrr@{}}
+\toprule
+ & & & \multicolumn{2}{c}{leaderboard test set} \\
+\cmidrule(l){4-5}
+dataset & articles & train / val / test impressions & impressions & articles \\
+\midrule
+\eb{} small (Danish) & 20,738 & 168,522 / 64,365 / 244,647 & 13,536,710 & 125,500 \\
+\mind{} small (English) & 65,238 & 95,071 / 61,894 / 73,152 & 2,370,727 & 120,961 \\
+\bottomrule
+\end{tabular}
+\caption{Development data and the held-out leaderboard sets. Splits are temporal: every train
+impression precedes every val impression, which precedes every test impression.}
+\label{tab:data}
+\end{table}
+
+\textbf{Splits are by time, never random.} A random split would let the model learn from
+Thursday to predict Wednesday, which no deployed system can do. \eb{} val begins 23 May 07:00 and
+test 25 May 07:00; \mind{} uses the last day of its training log as val and its dev log as test.
+
+\textbf{Metric: per-impression AUC.} For one impression, AUC is the chance that a randomly chosen
+clicked candidate is ranked above a randomly chosen non-clicked one, so 0.5 is random and 1.0 is
+perfect. We compute it inside each impression and average over impressions that contain both a
+click and a non-click. We do not pool all candidates across impressions, because the ranking is
+only ever judged inside one impression; pooling rewards features that merely differ between
+impressions. The effect is large: article freshness scores 0.5861 pooled but 0.5087 per impression.
+
+\textbf{Significance: paired bootstrap 95\% confidence intervals} \cite{efron1993}. To compare two
+systems we resample the impressions with replacement 1,000 times, score \emph{both} systems on each
+resample, and take the middle 95\% of the differences. Sharing the resample matters: two systems
+scored on the same impressions make correlated errors, and pairing cancels that noise. A gain is
+claimed only if its interval excludes zero. Every choice is selected on val, and test is scored
+once.
+
+\subsection{Architecture: retrieve, then re-rank}
+
+\begin{figure}[tb]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=2.5pt,
+              minimum height=7mm, text width=#1},
+  arr/.style={-{Stealth[length=1.8mm]}, semithick}]
+\node[box=2.2cm, fill=gray!8] (imp) at (0,0) {impression at time $t$: history, candidates};
+\node[box=2.2cm, fill=blue!6] (bm25) at (3.2,0.62) {BM25 over history titles};
+\node[box=2.2cm, fill=blue!6] (ann) at (3.2,-0.62) {exact kNN on mean history vector};
+\node[box=1.5cm, fill=blue!6] (fuse) at (5.75,0) {fuse, keep top 200};
+\node[box=2.3cm, fill=orange!10] (feat) at (8.3,0) {22 causal features (data before $t$)};
+\node[box=1.7cm, fill=orange!10] (lgb) at (10.8,0) {LightGBM LambdaRank};
+\node[box=1.15cm, fill=gray!8] (out) at (12.75,0) {ranked list};
+\draw[arr] (imp.east) -- ++(0.2,0) |- (bm25.west);
+\draw[arr] (imp.east) -- ++(0.2,0) |- (ann.west);
+\draw[arr] (bm25.east) -- ++(0.2,0) |- (fuse.west);
+\draw[arr] (ann.east) -- ++(0.2,0) |- (fuse.west);
+\draw[arr] (fuse) -- (feat);
+\draw[arr] (feat) -- (lgb);
+\draw[arr] (lgb) -- (out);
+\node[draw=blue!45, dashed, rounded corners=3pt, fit=(bm25)(ann)(fuse), inner sep=3pt,
+      label={[font=\scriptsize]below:stage one: cheap, whole catalogue}] {};
+\node[draw=orange!70, dashed, rounded corners=3pt, fit=(feat)(lgb), inner sep=3pt,
+      label={[font=\scriptsize]below:stage two: rich, candidates only}] {};
+\end{tikzpicture}
+\caption{The two-stage pipeline. Stage one touches every article, so it must stay cheap per
+article. Stage two touches only the candidates, so it can afford per-candidate features.}
+\label{fig:pipeline}
+\end{figure}
+
+\textbf{Stage one, candidate generation} (carried from Assignment 1). \emph{BM25}
+\cite{robertson2009,lu2024bm25s} is a lexical score: the query is the titles of the user's last
+$N$ clicks ($N=30$ on \eb{}, $100$ on \mind{}), and an article scores highly when it shares rare
+words with them. Stemming is on for both languages and a Danish stopword list is applied. The
+\emph{semantic} retriever represents the user as the mean of their clicked articles' vectors and
+finds the nearest articles by cosine with an exact FAISS \texttt{IndexFlatIP} \cite{johnson2019faiss}.
+Vectors are the provided 768-dimensional \texttt{contrastive\_vector} for \eb{} and
+384-dimensional \texttt{all-MiniLM-L6-v2} \cite{reimers2019} for \mind{}, both chosen by measurement
+in Assignment 1. The two scores are standardised within each candidate pool and mixed linearly,
+with the weight chosen on val. Each retriever keeps its top 200 candidates. Both indexes are held
+in RAM.
+
+\textbf{Stage two, the re-ranker.} A LightGBM \cite{ke2017lightgbm} gradient-boosted tree model
+with the \term{LambdaRank} objective \cite{burges2010}. LambdaRank learns from pairs of candidates
+inside the same impression and weights each pair by how much swapping them would change nDCG, so
+training optimises the ranking itself rather than a click probability. We measured this choice
+rather than assuming it (Table~\ref{tab:choices}). Settings: learning rate 0.05, 31 leaves,
+at least 50 rows per leaf, 90\% feature and row subsampling, up to 400 rounds with early stopping
+on val nDCG, seed 13.
+
+\subsection{Features and the behaviour-window boundary}
+
+\textbf{Every feature for an impression at time $t$ uses only data from strictly before $t$.} We
+call this the \term{behaviour-window boundary}. Click and exposure counts are computed by binary
+search over each article's sorted event times with a strict ``$< t$'' cut, so an event at exactly
+$t$ is excluded. Tests assert the boundary on every split, and each test was checked by injecting a
+future click and confirming it fails (Section~\ref{sec:q9}).
+
+\begin{table}[tb]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}Xcc@{}}
+\toprule
+family & features and what they measure & \eb{} & \mind{} \\
+\midrule
+stage-one scores & \feat{bm25}, \feat{emb} (the two retrieval scores); \feat{emb_rank} (the
+embedding score's rank inside the impression) & yes & yes \\
+click popularity & \feat{pop_causal}: clicks before $t$ in a 6\,h window (unbounded on \mind{});
+\feat{pop_24h}: the same over 24\,h; \feat{pop_velocity}: their ratio, ``rising now'' versus
+``steadily popular''; \feat{pop_rank}, \feat{pop_rel_max}: standing among this impression's
+candidates & yes & yes \\
+exposure & the same five shapes (\feat{exp_causal}, \feat{exp_24h}, \feat{exp_velocity},
+\feat{exp_rank}, \feat{exp_rel_max}) counting how often an article was \emph{shown} before $t$ &
+yes & yes \\
+user match & \feat{cat_match}: share of the user's history in the candidate's category;
+\feat{ent_overlap}: shared named entities with the history & yes & yes \\
+context & \feat{hist_len}: history length; \feat{n_cands}: number of candidates in the impression &
+yes & yes \\
+freshness & \feat{age_hours}, \feat{recency} (24\,h half-life decay of age) & yes & no \\
+engagement & \feat{user_read}, \feat{user_scroll}: mean read time and scroll depth of past clicks;
+\feat{engage_sim}: cosine to a read-time-weighted user vector & yes & no \\
+\midrule
+total & & 22 & 17 \\
+\bottomrule
+\end{tabularx}
+\caption{The re-ranker's features. Rank and relative features exist because the metric is decided
+inside one impression: a popularity of 200 dominates a quiet impression and is ordinary in a busy
+one.}
+\label{tab:features}
+\end{table}
+
+\textbf{Five features cannot exist on \mind{}, and we drop them explicitly.} \mind{}'s publication
+time is null for all 65,238 articles, and it ships no read-time or scroll data at all. A column of
+zeros looks like a real feature to LightGBM, so the builder refuses to emit any feature that is
+all-null or constant. This matches the data audit we did before designing features: \eb{} is rich
+in behavioural signal, \mind{} has little beyond the click itself.
+
+\textbf{Exposure} (``how often was this article shown before $t$'') was added for a practical
+reason and kept for a better one. The leaderboard test files withhold the clicks, so click
+popularity cannot be computed there (Section~\ref{sec:leaderboard}), but the lists of shown
+articles are present. A live recommender also knows its own exposure log immediately, while click
+feedback arrives later, so exposure is arguably the more realistic signal.

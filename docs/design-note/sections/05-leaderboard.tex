@@ -1,0 +1,66 @@
+\section{Leaderboard submissions}
+\label{sec:leaderboard}
+
+\textbf{The uploaded system is a re-ranker, but not the one reported above, and the gap is not in
+our favour.} Both are stated so that the better number never stands in for the uploaded one.
+
+\textbf{Why the two differ.} The Codabench test files withhold \feat{article_ids_clicked}. We
+checked this by comparing columns, not by assumption: the training behaviours file minus the test
+behaviours file leaves exactly the outcome columns (clicks and the next read and scroll values).
+Our five click-popularity features count clicks before each impression, and on the test period
+those clicks \emph{are} the withheld labels, so the features cannot be computed there at any cost.
+We replaced them with the five exposure features, which only need the in-view lists the test files
+do contain. We also dropped \feat{bm25} from the submission for cost rather than availability. It
+scores every article for every distinct history, which projects to about 1.6 hours on
+\mind{}-large, and it is worth only $+$0.0004 test AUC in the ablation.
+
+\begin{table}[tb]
+\centering\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\eb{} small, our test split & features & per-impression AUC \\
+\midrule
+reported system & 22 & \EBFinalTest \\
+uploaded system (no click popularity, no \feat{bm25}) & 16 & 0.7351 \\
+\midrule
+uploaded $-$ reported, paired bootstrap & & $-$0.0556 [$-$0.0565, $-$0.0547] \\
+\bottomrule
+\end{tabular}
+\caption{The gap between what we report and what we upload, measured on our own labelled test
+split. The \mind{} upload uses 11 features and scores 0.6460 on our \mind{} test split.}
+\label{tab:submitgap}
+\end{table}
+
+\textbf{Scale and validation.} The \eb{} test set has 13,536,710 impressions and 205,925,868
+candidate pairs; \mind{}-large test has 2,370,727 impressions. Neither fits in memory, so
+prediction streams in slices. Scoring \eb{} took 3\,h\,06\,m at 44\,GB peak memory on a cluster
+node; three earlier implementations were abandoned after their measured rates projected 38, 90 and
+135 hours, and the fix that mattered most was batching the LightGBM call (13.5M calls became 541).
+Each rewrite was checked to produce byte-identical output. Because \mind{} allows one submission
+per day, every file passes an offline validator before upload: exact inner filename
+(\texttt{prediction.txt} for \mind{}, \texttt{predictions.txt} for \eb{}), nothing else in the zip,
+row count, row order, and that each row is a permutation of $1..n$. Row order matters most, since
+ranks are positional and a reordered file scores as a plausible bad model instead of failing. The
+validator was itself checked by injecting five violations and confirming each one fails.
+
+\begin{table}[tb]
+\centering\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+leaderboard & AUC & MRR & nDCG@5 & nDCG@10 \\
+\midrule
+\mind{} (Codabench 13967) & \pend{pending} & \pend{pending} & \pend{pending} & \pend{pending} \\
+\eb{} (Codabench 2469) & \pend{pending} & \pend{pending} & \pend{pending} & \pend{pending} \\
+\bottomrule
+\end{tabular}
+\caption{Official leaderboard scores. \pend{To fill in after upload; screenshots are in
+Appendix~\ref{app:screenshots}.}}
+\label{tab:leaderboard}
+\end{table}
+
+\textbf{Reading the official \mind{} MRR.} \mind{}'s scorer averages the reciprocal rank over every
+clicked article, while the common definition credits only the first. The two agree when an
+impression has one click. On our \mind{} test split, where 28.8\% of impressions have more than
+one click, the definitions give 0.3108 against 0.2693 for the same ranking, with AUC and nDCG
+unchanged. Our harness reports both, and the ``all clicks'' column is the one to compare with the
+leaderboard.

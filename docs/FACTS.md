@@ -1150,3 +1150,110 @@ entry scored 0.5967 on the EB-NeRD leaderboard and stage one here is 0.5430; the
 re-ranker is 0.7351. Reporting both numbers separately, never letting the better one stand in for
 the uploaded one, is the same discipline `submit.py` already applied.
 
+## 19. Re-runs for the design note, 2026-09-15 (A2)
+
+Machine: **laptop-yash**, 8 physical / 12 logical cores, 15.3 GB RAM, no GPU. The Q5 harness and
+the Q4 bench had only ever been run against the 10-feature model, so every reported metric other
+than AUC described a system two feature rounds out of date. This section records the rebuild.
+
+### 19.1 The feature store, rebuilt with the shipped configuration
+
+`python -m src.features.build ebnerd_small`, which now picks up the 6 h popularity window and the
+exposure family from `POP_WINDOW_H` and `FEATURES`.
+
+| Fact | Value |
+|---|---|
+| Wall time | **15 m 35 s** |
+| Peak RSS | **5.51 GB** |
+| Candidate rows | 1,882,518 train / 703,229 val / 2,928,942 test |
+| Features per row | 22 |
+| Articles with click history / exposure history (test) | 3,080 / 5,776 |
+
+### 19.2 Three models, and an exact cross-machine reproduction
+
+Trained here with `src.rerank.train --tag <tag>`, seed 13, and compared against the figures
+laptop-naman committed. **All three match to six decimal places on both splits, including the
+early-stopping iteration**, so LightGBM training is deterministic across the two machines despite
+different core counts.
+
+| tag | features | val AUC | test AUC | best iteration | committed as | matches |
+|---|---|---|---|---|---|---|
+| `ladder10` | 10 | 0.752312 | 0.752308 | 124 | `popwin_6h` | yes |
+| `ladder17` | 17 | 0.763586 | 0.765266 | 238 | `full` | yes |
+| `final` | 22 | **0.788514** | **0.790773** | 399 | `sub_reported` | yes |
+
+`final` trains in 1 m 25 s at 2.50 GB peak. **Its best iteration is 399 of a 400-round cap**, so
+the model was still improving when training stopped; the reported gain is more likely understated
+than inflated. Raising `NUM_ROUNDS` is an open item.
+
+### 19.3 The two feature increments now have paired CIs
+
+Both steps were previously recorded as point differences with no interval, which is not a result
+under this project's own rule. `src.eval.compare_reranks` joins the two flat score tables on
+(impression_id, candidate), asserts the row counts and labels agree, aligns per-impression AUC on
+impression id rather than row order, and runs the shared-resample paired bootstrap.
+
+| step | val | test |
+|---|---|---|
+| 10 -> 17 features (ranks, velocity, `n_cands`, `ent_overlap`) | **+0.0113** [+0.0104, +0.0122] | **+0.0130** [+0.0124, +0.0134] |
+| 17 -> 22 features (the exposure family) | **+0.0249** [+0.0238, +0.0261] | **+0.0255** [+0.0249, +0.0261] |
+
+Both significant on both splits, and the exposure step is the larger of the two. That is worth
+stating plainly: the features built to work around Codabench withholding the click labels turned
+out to be the bigger offline win as well.
+
+### 19.4 Harness changes made to support this
+
+- `src.eval.run --rerank-tag` selects which trained re-ranker to score. It defaults to `full`, so
+  existing invocations are unchanged, and the design note's tables come from `--rerank-tag final`.
+  Without it the harness would silently score whichever re-ranker output happened to be on disk.
+- Diversity, novelty and **coverage** now carry bootstrap intervals, because Q5 asks for an
+  interval on every reported metric. Diversity and novelty are per-impression averages, so they
+  use the ordinary bootstrap. Coverage is one catalogue-wide count, so `coverage_interval`
+  resamples impressions and recounts the distinct articles their top-10 lists surface, holding the
+  lists as one integer matrix so a resample is a gather plus a boolean scatter.
+- `src.eval.bench --model-tag` times the **persisted** booster that `train.py` saved, rather than
+  retraining a stand-in to a recorded iteration count. The bench was previously timing a
+  10-feature model while the report described a 22-feature one.
+
+### 19.5 Three tests fail against the shipped configuration, and none of them is a leak
+
+Running `make test` against the rebuilt store gives **3 failed, 21 passed, 7 skipped**. All three
+failures are in code this lane does not own, so they are reported rather than patched. Diagnosis:
+
+**Two feature-leakage tests encode the pre-window definition of `pop_causal`.**
+`test_causal_popularity_counts_only_the_strict_past` and
+`test_no_click_at_or_after_the_impression_is_counted` both recompute the expected value as
+`(clicks < t).sum()`, every click before the impression. The shipped configuration counts only the
+last **6 hours** (`POP_WINDOW_H`), which landed after the tests were last touched. So the stored
+value is legitimately smaller: one sampled row reads 2 against the tests' expected 62.
+
+**Neither test can distinguish a narrower window from a leak**, because both assert equality
+against the unbounded count. A window only drops older clicks and can never admit newer ones, so
+the boundary is untouched by it. This is the same shape as the vacuous checks recorded in section
+6: the assertion tests a proxy (the unbounded recount) rather than the property it exists to
+protect (nothing at or after `t`).
+
+**The boundary itself was re-verified independently** before trusting any number from this store,
+by a different code path from the builder's (boolean masks rather than `searchsorted`), on
+EB-NeRD small val:
+
+| check | result |
+|---|---|
+| rows compared | 4,334 |
+| of those, rows whose article has clicks at or after `t` | 4,225 (so the boundary is exercised) |
+| `pop_causal` $\neq$ independent 6 h recount | **0** |
+| `pop_causal` $>$ unbounded count before `t` (any future click would show here) | **0** |
+| `exp_causal` $\neq$ independent 6 h recount | **0** |
+
+Suggested fix, in the owning lane: have the tests read `pop_window_for(name)` and recompute
+against that window, keeping a separate assertion that the stored count never exceeds the
+unbounded count, which is the leak-specific half and holds for any window.
+
+**The third failure is unrelated to the window and predates this work.**
+`test_no_scorer_reads_a_serving_unavailable_column` allows only `src/eval/run.py` and
+`src/features/leaky.py` to name the lifetime columns, and `src/rerank/q9.py` names
+`total_pageviews` and `total_read_time`. Since producing the Q9 comparison is that module's only
+purpose, the fix is to add it to the allow-list, which keeps the guard meaningful for every other
+scorer.
+

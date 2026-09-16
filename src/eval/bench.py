@@ -363,12 +363,15 @@ def scaling_curve(name, cfg, articles, impressions, vectors, booster, features,
 
 # ----------------------------------------------------------------------- driver
 
-def load_everything(name: str, cfg: dict, split: str):
-    """Build every index the serving path needs, timed, and train the stage-two model.
+def load_everything(name: str, cfg: dict, split: str, model_tag: str = "final"):
+    """Build every index the serving path needs, timed, and load the stage-two model.
 
-    The re-ranker's trainer does not persist its booster, so one is trained here to the
-    iteration count the recorded run selected. Training cost is a build number, not a
-    serving number, and is reported separately from any latency figure.
+    The re-ranker is the exact booster `src.rerank.train --tag <model_tag>` persisted to
+    `models/`, so the latency below is the latency of the model whose accuracy the report
+    quotes, with its real tree count and feature width. If no persisted model exists the
+    bench falls back to retraining one to the recorded iteration count, and says so in the
+    report, because a retrained stand-in is a different model. Either way training or loading
+    cost is a build number, not a serving number, and is reported separately.
     """
     import faiss
     import lightgbm as lgb
@@ -394,31 +397,43 @@ def load_everything(name: str, cfg: dict, split: str):
     faiss_index.add(vectors)
     faiss_build_s = time.perf_counter() - t
 
-    # Stage two, trained on the same features the pipeline ships.
-    train = pl.read_parquet(PROC / name / "features_train.parquet")
-    groups = train.group_by("impression_id", maintain_order=True).len()["len"].to_numpy()
-    best_iter = 100
-    recorded = RESULTS / f"rerank_{name}_full.json"
-    if recorded.exists():
-        best_iter = json.loads(recorded.read_text()).get("best_iteration", best_iter)
-    t = time.perf_counter()
-    booster = lgb.train(
-        PARAMS,
-        lgb.Dataset(train.select(FEATURES).to_numpy(), label=train["label"].to_numpy(),
-                    group=groups, feature_name=list(FEATURES)),
-        num_boost_round=best_iter,
-    )
-    rerank_train_s = time.perf_counter() - t
-    del train
-
     build = {
         "bm25_index_build_s": bm25_build_s,
         "article_vector_load_s": vector_load_s,
         "faiss_index_build_s": faiss_build_s,
-        "rerank_train_s": rerank_train_s,
-        "rerank_trees": int(booster.num_trees()),
     }
-    return articles, impressions, index, stemmer, vectors, faiss_index, booster, FEATURES, build
+
+    model_path = ROOT / "models" / f"{name}_{model_tag}.txt"
+    if model_path.exists():
+        # The persisted booster: the shipped model, not a reconstruction of it.
+        t = time.perf_counter()
+        booster = lgb.Booster(model_file=str(model_path))
+        build["rerank_model"] = model_path.name
+        build["rerank_model_load_s"] = time.perf_counter() - t
+        features = booster.feature_name()
+    else:
+        # Fallback: retrain to the recorded iteration count on the default feature list.
+        train = pl.read_parquet(PROC / name / "features_train.parquet")
+        groups = train.group_by("impression_id", maintain_order=True).len()["len"].to_numpy()
+        best_iter = 100
+        recorded = RESULTS / f"rerank_{name}_full.json"
+        if recorded.exists():
+            best_iter = json.loads(recorded.read_text()).get("best_iteration", best_iter)
+        features = list(FEATURES)
+        t = time.perf_counter()
+        booster = lgb.train(
+            PARAMS,
+            lgb.Dataset(train.select(features).to_numpy(), label=train["label"].to_numpy(),
+                        group=groups, feature_name=features),
+            num_boost_round=best_iter,
+        )
+        build["rerank_model"] = f"retrained in bench, {best_iter} rounds (no models/{model_path.name})"
+        build["rerank_train_s"] = time.perf_counter() - t
+        del train
+
+    build["rerank_trees"] = int(booster.num_trees())
+    build["rerank_features"] = len(features)
+    return articles, impressions, index, stemmer, vectors, faiss_index, booster, features, build
 
 
 def render(r: dict) -> str:
@@ -556,12 +571,14 @@ def main() -> None:
     ap.add_argument("--split", default="val")
     ap.add_argument("--requests", type=int, default=1000)
     ap.add_argument("--scale-points", type=float, nargs="+", default=[0.25, 0.5, 1.0])
+    ap.add_argument("--model-tag", default="final",
+                    help="time models/<dataset>_<tag>.txt, the booster src.rerank.train saved")
     args = ap.parse_args()
 
     cfg = config[args.dataset]
     print(f"{args.dataset} / {args.split}: building indexes")
     (articles, impressions, index, stemmer, vectors, faiss_index, booster, features,
-     build) = load_everything(args.dataset, cfg, args.split)
+     build) = load_everything(args.dataset, cfg, args.split, args.model_tag)
     print(f"  {articles.height:,} articles, {impressions.height:,} impressions, "
           f"{booster.num_trees()} trees")
 

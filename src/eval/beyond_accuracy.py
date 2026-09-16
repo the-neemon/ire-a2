@@ -62,13 +62,45 @@ def evaluate(candidates: list, scores: list, category_of, self_information, unse
     """Per-impression diversity and novelty, plus one corpus-level coverage number."""
     diversity, novel = [], []
     surfaced: set[str] = set()
+    top_lists: list[list[str]] = []
     for cand, score in zip(candidates, scores):
         top = _top_ids(cand, np.asarray(score, dtype=np.float64), k)
         surfaced.update(top)
+        top_lists.append(top)
         diversity.append(intra_list_diversity(top, category_of))
         novel.append(novelty(top, self_information, unseen))
     return {
         "diversity": np.array(diversity),
         "novelty": np.array(novel),
         "coverage": len(surfaced) / catalogue_size,
+        "top_ids": top_lists,
     }
+
+
+def coverage_interval(top_ids: list[list[str]], catalogue_size: int, resamples: int = 1000,
+                      seed: int = 0, level: float = 95.0) -> tuple[float, float]:
+    """Bootstrap interval for coverage, resampling impressions exactly as every other metric does.
+
+    Coverage is one catalogue-wide number, not a per-impression average, so `bootstrap.ci`
+    cannot be applied to a vector. Instead each resample redraws the impressions with
+    replacement and recounts the distinct articles their top-k lists surface. The top-k lists
+    are held as one integer matrix so a resample is a single gather plus a boolean scatter, with
+    no per-resample set arithmetic. Padding for impressions shorter than k is index -1, which
+    lands in a spare last slot that is excluded from the count.
+    """
+    vocab: dict[str, int] = {}
+    width = max((len(t) for t in top_ids), default=0)
+    mat = np.full((len(top_ids), max(width, 1)), -1, dtype=np.int64)
+    for i, top in enumerate(top_ids):
+        for j, article in enumerate(top):
+            mat[i, j] = vocab.setdefault(article, len(vocab))
+    rng = np.random.default_rng(seed)
+    n = len(top_ids)
+    seen = np.zeros(len(vocab) + 1, dtype=bool)
+    draws = np.empty(resamples)
+    for r in range(resamples):
+        seen[:] = False
+        seen[mat[rng.integers(0, n, size=n)].ravel()] = True
+        draws[r] = seen[:-1].sum() / catalogue_size
+    tail = (100.0 - level) / 2.0
+    return float(np.percentile(draws, tail)), float(np.percentile(draws, 100.0 - tail))

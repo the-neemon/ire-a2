@@ -1,0 +1,68 @@
+\subsection{Anti-gaming: serving-unavailable features and the leak we found}
+\label{sec:q9}
+
+\textbf{What the system declines to use.} \eb{} ships three lifetime totals per article (views,
+page views, read time) summed over the whole collection period, so for any impression they
+include the future and cannot exist when serving. We trained the same ranker on the same rows with
+and without them. The difference is small next to what the honest system already earns:
+
+\begin{table}[tb]
+\centering\small
+\begin{tabular}{@{}lc@{}}
+\toprule
+\eb{} small, val, 64,365 impressions & per-impression AUC \\
+\midrule
+causal features only (servable) & \QnineCausal \\
+plus lifetime totals (not servable) & \QnineLeaky \\
+\midrule
+difference, paired bootstrap & \QnineDelta{} \QnineCI \\
+\bottomrule
+\end{tabular}
+\caption{Metrics with and without serving-unavailable features, measured on the 10-feature
+model with the 6\,h window.}
+\label{tab:q9}
+\end{table}
+
+In Assignment~1 the same totals were worth $+$0.042 to $+$0.075, more than our whole semantic
+axis, because they were compared against systems with no popularity signal at all. Here they
+compete with click counts restricted to the past, which capture most of the same information
+legitimately. Cheating would buy \QnineDelta; the honest behavioural axis earns $+$0.2223 on test,
+about ten times more. End to end, the servable re-ranker (\EBFinalTest{} test) far outscores stage
+one with lifetime popularity added (\EBLeakyTest{} test). \mind{} cannot run this comparison: its
+lifetime columns are null for all 65,238 articles.
+
+\textbf{Enforcement.} Two tests guard the boundary. One asserts that no click, exposure or
+engagement value used for an impression comes from at or after its timestamp, on every split; the
+other fails if any scoring module reads a lifetime column. Each was verified by injecting a
+violation and watching it fail, after we found checks that passed without checking anything
+(Section~\ref{sec:lessons}).
+
+\textbf{The leak we found, and what fixing it did.} \eb{} ships its history in two blocks, each
+describing clicks before \emph{that block} begins. Our feature builder merged both, letting the
+later block overwrite the earlier for 11,658 users. Our val split is carved from the earlier
+block, so val impressions were described by history from their own future:
+
+\begin{table}[tb]
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+split & impressions & matched to the later history block & history at or after the impression \\
+\midrule
+train & 168,522 & 144,087 & 143,998 (99.9\%) \\
+val & 64,365 & 61,026 & 60,901 (99.8\%) \\
+test & 244,647 & 244,647 & 0 (0.0\%) \\
+\bottomrule
+\end{tabular}
+\caption{Future-click contamination in the engagement features before the fix. Test was clean
+because it comes from the later block itself.}
+\label{tab:leak}
+\end{table}
+
+We found it by chasing a metric discrepancy, not with a test: two implementations of the same user
+vector scored 0.6473 and 0.5506, and making one reproduce both numbers with only the history
+source changed confirmed the cause, a $+$0.0967 inflation on that feature. The fix reads one block
+per split, and a new test that fails on injection covers it. Two consequences show the leak was
+real and the fix was right. The read-time-weighted user vector's apparent $+$0.0085 contribution
+fell to $+$0.0002, not significant, so its entire value had been the leak. And test AUC
+\emph{rose} from 0.7429 to 0.7461, because test features were always clean and only the model,
+now trained without future information, changed.

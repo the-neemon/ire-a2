@@ -1,0 +1,40 @@
+\subsection{What each design choice was worth}
+\label{sec:choices}
+
+Every choice below was made by measuring the alternative, one change at a time, with a paired
+bootstrap interval. Rows marked ``10 features'' were measured before the feature set grew; the two
+feature rows are the incremental steps to the shipped \eb{} model.
+
+\begin{table}[tb]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.35cm}cc>{\raggedright\arraybackslash}p{1.75cm}@{}}
+\toprule
+choice & compared against & val $\Delta$ [95\% CI] & test $\Delta$ [95\% CI] & verdict \\
+\midrule
+re-ranking at all & stage one alone & \dcell{$+$0.2138}{[$+$0.2110, $+$0.2168]} & \dcell{$+$0.2223}{[$+$0.2209, $+$0.2238]} & core result \\
+LambdaRank objective (10 features) & binary objective & \dcell{$+$0.0161}{[$+$0.0150, $+$0.0173]} & \dcell{$+$0.0165}{[$+$0.0159, $+$0.0171]} & kept \\
+6\,h click-popularity window (10 features) & all past clicks & \dcell{$+$0.0034}{[$+$0.0026, $+$0.0043]} & \dcell{$+$0.0062}{[$+$0.0058, $+$0.0067]} & shipped \\
+seven rank, velocity and context features & the 10 features & \dcell{\LadderSevenVal}{\LadderSevenValCI} & \dcell{\LadderSevenTest}{\LadderSevenTestCI} & shipped \\
+five exposure features & the 17 features & \dcell{\LadderExpVal}{\LadderExpValCI} & \dcell{\LadderExpTest}{\LadderExpTestCI} & shipped \\
+read-time-weighted user vector & uniform vector only & \dcell{$+$0.0003}{[$-$0.0003, $+$0.0010]} & \dcell{$+$0.0005}{[$+$0.0002, $+$0.0008]} & kept, tiny \\
+linear fusion of BM25 and embeddings & embeddings alone & \dcell{$+$0.0022}{[$+$0.0010, $+$0.0034]} & \dcell{$-$0.0017}{[$-$0.0023, $-$0.0010]} & does not generalise \\
+title-only BM25 documents & title and abstract & \dcell{$+$0.0025}{[$+$0.0002, $+$0.0047]} & \dcell{$+$0.0043}{[$+$0.0031, $+$0.0055]} & not shipped$^\dagger$ \\
+stemming off, \mind{} & stemming on & \dcell{$-$0.0023}{[$-$0.0034, $-$0.0013]} & \dcell{$-$0.0028}{[$-$0.0039, $-$0.0018]} & keep on \\
+stemming off, \eb{} & stemming on & \dcell{$-$0.0003}{[$-$0.0019, $+$0.0014]} & \dcell{$-$0.0002}{[$-$0.0011, $+$0.0007]} & keep on, for cost \\
+\bottomrule
+\end{tabularx}
+\caption{Per-impression AUC change from each choice, on \eb{} unless marked. The first row is the
+\feat{stage1_only} arm of the 17-feature grid. $^\dagger$Title-only documents also cost val
+recall@200 by $-$0.0024 [$-$0.0035, $-$0.0013], and recall is what stage two consumes.}
+\label{tab:choices}
+\end{table}
+
+Three of these deserve a sentence. \textbf{The objective matters}: with a binary objective the
+model's most-used features become absolute freshness, while LambdaRank leans on popularity
+contrasts inside the impression, which is what decides the ranking. \textbf{Recent popularity beats
+lifetime popularity}: counting only the last 6 hours asks ``how popular is this right now'', the
+right question for news. In isolation the window moved the feature from 0.6902 to 0.7349 AUC, but
+inside the ranker the gain is far smaller because other features partly cover for it, so we quote
+the ranker figure. \textbf{Fusion helps on val and hurts on test}, both significantly. The mixing
+weight chosen on val does not transfer across the time boundary, which is moot next to stage two
+but is an honest negative result.
