@@ -1,11 +1,11 @@
 \section{What we built}
 \label{sec:system}
 
-The task is news recommendation from click-logs. The unit of everything is an \term{impression}:
-at time $t$ a user is shown a list of \term{candidate} articles and clicks some of them. Our job is
-to order each impression's candidates so the clicked ones come first. We extend our two
-Assignment-1 retrieval systems (lexical and semantic) with the \term{behavioural} signal in the
-logs: what users clicked, how often each article has been clicked or shown, and how fresh it is.
+The unit of everything is an \term{impression}: at time $t$ a user is shown \term{candidate}
+articles and clicks some. Our job is to order each impression's candidates so the clicked ones come
+first. We extend our two Assignment-1 retrieval systems, lexical and semantic, with the
+\term{behavioural} signal in the logs: what users clicked, how often each article was clicked or
+shown, and how fresh it is.
 
 \subsection{Data and evaluation protocol}
 
@@ -26,14 +26,14 @@ impression precedes every val impression, which precedes every test impression.}
 \label{tab:data}
 \end{table*}
 
-\textbf{Splits are by time, never random.} A random split would let the model learn from
-Thursday to predict Wednesday, which no deployed system can do. \eb{} val begins 23 May 07:00 and
-test 25 May 07:00; \mind{} uses the last day of its training log as val and its dev log as test.
+\textbf{Splits are by time, never random}, since a random split lets the model learn from Thursday
+to predict Wednesday. \eb{} val begins 23 May 07:00 and test 25 May 07:00; \mind{} uses the last
+day of its training log as val and its dev log as test.
 
 \textbf{Metric: per-impression AUC}, computed inside each impression and averaged over those with
-both a click and a non-click. We never pool candidates across impressions, because the ranking is
-only judged inside one: pooling rewards features that merely differ between impressions, and the
-effect is large, with article freshness reading 0.5861 pooled against 0.5087 per impression.
+both a click and a non-click. Pooling candidates across impressions would reward features that
+merely differ between impressions, and the effect is large: freshness reads 0.5861 pooled against
+0.5087 per impression.
 
 \textbf{Significance: paired bootstrap 95\% intervals} \cite{efron1993}, 1,000 resamples, both
 systems scored on the \emph{same} resampled impressions so their correlated errors cancel. A gain
@@ -72,32 +72,29 @@ article. Stage two touches only the candidates, so it can afford per-candidate f
 \end{figure*}
 
 \textbf{Stage one, candidate generation} (carried from Assignment 1). \emph{BM25}
-\cite{robertson2009,lu2024bm25s} is a lexical score: the query is the titles of the user's last
-$N$ clicks ($N=30$ on \eb{}, $100$ on \mind{}), and an article scores highly when it shares rare
-words with them. Stemming is on for both languages and a Danish stopword list is applied. The
-\emph{semantic} retriever represents the user as the mean of their clicked articles' vectors and
-finds the nearest articles by cosine with an exact FAISS \texttt{IndexFlatIP} \cite{johnson2019faiss}.
-Vectors are the provided 768-dimensional \texttt{contrastive\_vector} for \eb{} and
-384-dimensional \texttt{all-MiniLM-L6-v2} \cite{reimers2019} for \mind{}, both chosen by measurement
-in Assignment 1. The two scores are standardised within each candidate pool and mixed linearly,
-with the weight chosen on val. Each retriever keeps its top 200 candidates. Both indexes are held
-in RAM.
+\cite{robertson2009,lu2024bm25s} scores an article by the rare words it shares with a query built
+from the titles of the user's last $N$ clicks ($N=30$ on \eb{}, $100$ on \mind{}), with stemming on
+for both languages and a Danish stopword list. The \emph{semantic} retriever takes the mean of the
+user's clicked-article vectors and finds nearest neighbours by cosine with an exact FAISS
+\texttt{IndexFlatIP} \cite{johnson2019faiss}. Vectors are the provided 768-dimensional
+\texttt{contrastive\_vector} for \eb{} and 384-dimensional \texttt{all-MiniLM-L6-v2}
+\cite{reimers2019} for \mind{}, both chosen by measurement in Assignment 1. The two scores are
+standardised within each pool and mixed linearly, weight chosen on val. Each retriever keeps its
+top 200. Both indexes are held in RAM.
 
 \textbf{Stage two, the re-ranker.} A LightGBM \cite{ke2017lightgbm} gradient-boosted tree model
-with the \term{LambdaRank} objective \cite{burges2010}. LambdaRank learns from pairs of candidates
-inside the same impression and weights each pair by how much swapping them would change nDCG, so
-training optimises the ranking itself rather than a click probability. We measured this choice
-rather than assuming it (Table~\ref{tab:choices}). Settings: learning rate 0.05, 31 leaves,
-at least 50 rows per leaf, 90\% feature and row subsampling, up to 400 rounds with early stopping
-on val nDCG, seed 13.
+with the \term{LambdaRank} objective \cite{burges2010}, which learns from pairs of candidates
+inside one impression weighted by how much swapping them would change nDCG, so training optimises
+the ranking rather than a click probability. We measured that choice rather than assuming it
+(Table~\ref{tab:choices}). Settings: learning rate 0.05, 31 leaves, at least 50 rows per leaf,
+90\% feature and row subsampling, up to 400 rounds with early stopping on val nDCG, seed 13.
 
 \subsection{Features and the behaviour-window boundary}
 
-\textbf{Every feature for an impression at time $t$ uses only data from strictly before $t$.} We
-call this the \term{behaviour-window boundary}. Click and exposure counts are computed by binary
-search over each article's sorted event times with a strict ``$< t$'' cut, so an event at exactly
-$t$ is excluded. Tests assert the boundary on every split, and each test was checked by injecting a
-future click and confirming it fails (Section~\ref{sec:q9}).
+\textbf{Every feature for an impression at time $t$ uses only data from strictly before $t$}, the
+\term{behaviour-window boundary}. Click and exposure counts come from binary search over each
+article's sorted event times with a strict ``$< t$'' cut, so an event at exactly $t$ is excluded.
+Tests assert this on every split and each was checked by injection (Section~\ref{sec:q9}).
 
 \begin{table*}[t]
 \centering\small
@@ -131,14 +128,13 @@ one.}
 \label{tab:features}
 \end{table*}
 
-\textbf{Five features cannot exist on \mind{}, and we drop them explicitly.} \mind{}'s publication
-time is null for all 65,238 articles, and it ships no read-time or scroll data at all. A column of
-zeros looks like a real feature to LightGBM, so the builder refuses to emit any feature that is
-all-null or constant. This matches the data audit we did before designing features: \eb{} is rich
-in behavioural signal, \mind{} has little beyond the click itself.
+\textbf{Five features cannot exist on \mind{}, and we drop them explicitly.} Its publication time
+is null for all 65,238 articles and it ships no read-time or scroll data. Since a column of zeros
+looks like a real feature to LightGBM, the builder refuses to emit anything all-null or constant.
+This matches our pre-design data audit: \eb{} is rich in behavioural signal, \mind{} has little
+beyond the click itself.
 
-\textbf{Exposure} (``how often was this article shown before $t$'') was added for a practical
-reason and kept for a better one. The leaderboard test files withhold the clicks, so click
-popularity cannot be computed there (Section~\ref{sec:leaderboard}), but the lists of shown
-articles are present. A live recommender also knows its own exposure log immediately, while click
-feedback arrives later, so exposure is arguably the more realistic signal.
+\textbf{Exposure} (``how often was this article shown before $t$'') was added because the
+leaderboard files withhold clicks (Section~\ref{sec:leaderboard}) but keep the in-view lists, and
+kept for a better reason: a live recommender knows its own exposure log immediately, while click
+feedback arrives later.

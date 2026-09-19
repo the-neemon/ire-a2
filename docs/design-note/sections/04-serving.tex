@@ -2,10 +2,9 @@
 \label{sec:serving}
 
 Every number here came from one machine, a laptop with 8 physical (12 logical) cores, 15.3 GB RAM
-and no GPU, timing the shipped 22-feature model with its 399 trees. Latencies from different
-machines are not comparable, so none are mixed. Requests are timed \textbf{one at a time}, never
-batched: batching raises throughput while making each request slower, and it is the tail that a
-user notices.
+and no GPU, timing the shipped 22-feature model with its 399 trees; none are mixed across machines.
+Requests are timed \textbf{one at a time}, never batched, because batching raises throughput while
+making each request slower and it is the tail a user notices.
 
 \subsection{Index memory, in RAM and on disk}
 
@@ -20,7 +19,7 @@ different factors per structure.}
 The dense index is the largest structure despite covering the fewest objects: a vector spends
 memory on every dimension of every article, while an inverted index spends it only on terms that
 occur. It is also the only one whose RAM and disk sizes agree, because a flat index \emph{is} its
-raw matrix, with nothing to compress or reconstruct. Both facts matter for the scaling result.
+raw matrix. Both facts matter for the scaling result.
 
 \subsection{Latency of a single request}
 
@@ -31,31 +30,29 @@ raw matrix, with nothing to compress or reconstruct. Both facts matter for the s
 \label{tab:latency}
 \end{table*}
 
-The median request takes \BenchPfifty{} ms and the 99th percentile \BenchPninetynine{} ms. Exact
-embedding search is \BenchAnnShare\% of the median and the re-ranker \BenchRerankShare\%, so the
-two expensive stages are the dense scan and stage two. Reporting per stage is what makes this
-actionable: it names the component to attack.
+The median request takes \BenchPfifty{} ms and p99 \BenchPninetynine{} ms. Exact embedding search
+is \BenchAnnShare\% of the median and the re-ranker \BenchRerankShare\%, so those two are what to
+attack.
 
 \textbf{The accuracy gain was not free.} The same bench on the earlier 10-feature model with 311
-trees gave a median of 22.06 ms and a p99 of 64.90 ms, so going to 22 features roughly doubled the
-median. That is an honest cost of the \EBGainTest{} AUC, and it only shows up when serving is
-measured rather than assumed.
+trees gave a median of 22.06 ms and p99 64.90 ms, so going to 22 features roughly doubled the
+median. That is the cost of the \EBGainTest{} AUC, and it only appears when serving is measured
+rather than assumed.
 
 \subsection{Cost per 1000 queries at a target SLA}
 
-Against a target of p99 under 100 ms, the measured p99 of \BenchPninetynine{} ms \textbf{meets the
-SLA, with \BenchHeadroom$\times$ headroom} rather than the 1.5$\times$ the smaller model had. One
-core sustains \BenchSerialQPS{} queries per second, measured. Scaling to \BenchCores{} physical
-cores gives \BenchCapacityQPS{} QPS, a \emph{projection} assuming requests are independent and
-scale linearly. At an assumed \$0.040 per vCPU-hour that is \textbf{\$\BenchCost{} per 1000
-queries}, also projected: the price is an assumption and only the latency it multiplies is
-measured. We count physical cores because this path is dense floating-point work, where a second
-thread on the same core shares an execution unit and adds much less than a real core.
+Against a target of p99 under 100 ms, the measured \BenchPninetynine{} ms \textbf{meets the SLA
+with \BenchHeadroom$\times$ headroom}, down from the 1.5$\times$ the smaller model had. One core
+sustains \BenchSerialQPS{} QPS, measured. Scaling to \BenchCores{} physical cores gives
+\BenchCapacityQPS{} QPS and, at an assumed \$0.040 per vCPU-hour, \textbf{\$\BenchCost{} per 1000
+queries}. Both of those are \emph{projections}: only the latency they multiply is measured. We
+count physical cores because this path is dense floating-point work, where a second thread on the
+same core shares an execution unit.
 
 \subsection{What breaks first at 10$\times$}
 
-Rather than extrapolate one measurement under an assumed growth law, which is the assumption in
-question, we subsampled the corpus and re-timed every stage.
+Extrapolating one measurement would assume the growth law that is exactly the question, so we
+subsampled the corpus and re-timed every stage.
 
 \begin{figure*}[t]
 \centering
@@ -73,31 +70,24 @@ RAM. \textbf{At 10$\times$ the catalogue this is a memory-bandwidth problem, not
 so buying cores would not fix it.
 
 \textbf{The re-ranker also slows down, and it is not doing more work.} Its cost grew
-\BenchRerankGrowth$\times$, which is surprising because it scores only the candidate pool, whose
-size is set by the retrievers rather than by the corpus. We measured the pool instead of assuming
-it: across the same \BenchCorpusGrowth$\times$ corpus the mean pool goes from \PoolSmall{} to
-\PoolFull{} candidates, a factor of \PoolGrowth. The work really is flat, so the extra time is the
-same work executing more slowly. Every stage slows at the largest corpus, including feature
-assembly, which touches only that same pool. The consistent reading is that the dense scan's
-memory traffic evicts everything else from cache, so the index does not merely cost its own stage
-time, it taxes the whole request.
+\BenchRerankGrowth$\times$, surprising because it scores only the candidate pool, whose size the
+retrievers set rather than the corpus. We measured the pool rather than assuming: across the same
+\BenchCorpusGrowth$\times$ corpus the mean pool goes \PoolSmall{} to \PoolFull{} candidates, a
+factor of \PoolGrowth. The work is flat, so the extra time is the same work executing more slowly.
+Every stage slows at the largest corpus, including feature assembly, which touches only that pool.
+The consistent reading is that the dense scan's memory traffic evicts everything else from cache,
+so the index taxes the whole request rather than only its own stage.
 
-\textbf{Two growth figures are upper bounds, and we can now say by how much.} Subsampling the
-corpus also shortens the query, because it is built from the titles of history articles and a
-removed article contributes nothing. Measured on the same runs: mean query length falls from
-\TokFull{} tokens at full corpus to \TokSmall{} at a tenth, and resolvable history items from
-\HistFull{} to \HistSmall{}. So the \BenchTokGrowth$\times$ for tokenising and
-\BenchBmGrowth$\times$ for BM25 mix corpus size with query length and overstate the corpus effect.
-Exact search is unaffected, since a flat scan costs vectors times dimensions whatever the query
-holds, which is why the verdict rests on it.
+\textbf{Two growth figures are upper bounds.} Subsampling also shortens the query, which is built
+from history-article titles: mean query length falls \TokFull{} to \TokSmall{} tokens and
+resolvable history items \HistFull{} to \HistSmall{}. So the \BenchTokGrowth$\times$ for tokenising
+and \BenchBmGrowth$\times$ for BM25 mix corpus size with query length and overstate the corpus
+effect. Exact search is unaffected, since a flat scan costs vectors times dimensions whatever the
+query holds, which is why the verdict rests on it.
 
-\textbf{This overturns our Assignment-1 conclusion}, which was that the per-impression Python loop
-would break before the linear algebra. The lever that matters now is replacing exact search with
-an approximate index, which Assignment 1 measured as 10 to 20$\times$ faster and set aside as
-unnecessary at the time, flagging a revisit at 10$\times$. This is that revisit and the answer is
-the opposite. On this evidence it would speed up more than its own stage, since it is also what
-is taxing the others. What it would cost in recall at this catalogue size we have not measured,
-so the replacement is motivated but unquantified.
-
-Repeated runs on this machine differ by roughly $\pm$20\%, so these timings should never be
-compared against numbers from another machine.
+\textbf{This overturns our Assignment-1 conclusion} that the per-impression Python loop would break
+before the linear algebra. The lever now is an approximate index, which Assignment 1 measured as 10
+to 20$\times$ faster and set aside as unnecessary, flagging a revisit at 10$\times$. This is that
+revisit and the answer is the opposite. It would speed up more than its own stage, since it is also
+what taxes the others, but what it costs in recall here we have not measured. Repeated runs on this
+machine differ by roughly $\pm$20\%.

@@ -2,9 +2,9 @@
 \label{sec:q9}
 
 \textbf{What the system declines to use.} \eb{} ships three lifetime totals per article (views,
-page views, read time) summed over the whole collection period, so for any impression they
-include the future and cannot exist when serving. We trained the same ranker on the same rows with
-and without them. The difference is small next to what the honest system already earns:
+page views, read time) summed over the whole collection period, so for any impression they include
+the future and cannot exist when serving. We trained the same ranker on the same rows with and
+without them:
 
 \begin{table*}[t]
 \centering\small
@@ -23,29 +23,28 @@ model with the 6\,h window.}
 \label{tab:q9}
 \end{table*}
 
-In Assignment~1 the same totals were worth $+$0.042 to $+$0.075, more than our whole semantic
-axis, because they were compared against systems with no popularity signal at all. Here they
-compete with click counts restricted to the past, which capture most of the same information
-legitimately. Cheating would buy \QnineDelta{}, while the behavioural axis is worth \EBGainTest{}
-over stage one, roughly an order of magnitude more. Both arms of this comparison are the
-10-feature model, so it prices the leak against that round rather than against the shipped 22.
-End to end, the servable re-ranker (\EBFinalTest{} on test) far outscores stage one with lifetime
-popularity added (\EBLeakyTest{}). \mind{} cannot run this comparison at all: its lifetime columns
-are null for all 65,238 articles.
+In Assignment~1 the same totals were worth $+$0.042 to $+$0.075, more than our whole semantic axis,
+because they competed against systems with no popularity signal at all. Here they compete with
+click counts restricted to the past, which capture most of the same information legitimately.
+Cheating would buy \QnineDelta{}; the behavioural axis earns \EBGainTest{} legitimately, roughly an
+order of magnitude more. Both arms are the 10-feature model, so this prices the leak against that
+round rather than the shipped 22. End to end the servable re-ranker (\EBFinalTest{}) far outscores
+stage one with lifetime popularity added (\EBLeakyTest{}). \mind{} cannot run this comparison at
+all: its lifetime columns are null for all 65,238 articles.
 
-\textbf{Enforcement.} Two tests guard the boundary. One asserts that no click, exposure or
+\textbf{Enforcement.} Two tests guard the boundary: one asserts that no click, exposure or
 engagement value used for an impression comes from at or after its timestamp, on every split; the
 other fails if any scoring module reads a lifetime column. Each was verified by injecting a
 violation and watching it fail, after we found checks that passed without checking anything
 (Section~\ref{sec:lessons}).
 
 The first recounts popularity against the \textbf{6\,h window the shipped feature actually uses},
-with a \emph{two-sided} mask over the click times and a different code path from the builder's
-binary search. Two-sided is the load-bearing part: asserting only ``no more than the clicks before
-$t$'' is satisfied by a window reaching past $t$ so long as it stays narrow, so the weaker check
-passes on the leak it exists to catch. We confirmed the stronger one is live by mutation, not by
-argument: changing the window to 12\,h or to unbounded without rebuilding makes both boundary tests
-fail. The suite is \textbf{29 passed, 6 skipped, 0 failed}.
+with a \emph{two-sided} mask and a different code path from the builder's binary search. Two-sided
+is load-bearing: asserting only ``no more than the clicks before $t$'' is satisfied by a window
+reaching past $t$ so long as it stays narrow, so the weaker check passes on the leak it exists to
+catch. We confirmed the stronger one is live by mutation rather than argument, since changing the
+window to 12\,h or unbounded without rebuilding makes both boundary tests fail. The suite is
+\textbf{29 passed, 6 skipped, 0 failed}.
 
 \textbf{The leak we found, and what fixing it did.} \eb{} ships its history in two blocks, each
 describing clicks before \emph{that block} begins. Our feature builder merged both, letting the
@@ -55,10 +54,9 @@ block, so val impressions were described by history from their own future:
 clean at 0.0\% because it comes from the later block itself (Appendix~\ref{app:leak}).
 
 We found it by chasing a metric discrepancy, not with a test: two implementations of the same user
-vector scored 0.6473 and 0.5506, and making one reproduce both numbers with only the history
-source changed confirmed the cause, a $+$0.0967 inflation on that feature. The fix reads one block
-per split, and a new test that fails on injection covers it. Two consequences show the leak was
-real and the fix was right. The read-time-weighted user vector's apparent $+$0.0085 contribution
-fell to $+$0.0002, not significant, so its entire value had been the leak. And test AUC
-\emph{rose} from 0.7429 to 0.7461, because test features were always clean and only the model,
-now trained without future information, changed.
+vector scored 0.6473 and 0.5506, and making one reproduce both numbers with only the history source
+changed confirmed a $+$0.0967 inflation on that feature. The fix reads one block per split, covered
+by a test that fails on injection. Two consequences show the leak was real. The read-time-weighted
+user vector's apparent $+$0.0085 contribution fell to $+$0.0002, not significant, so its entire
+value had been the leak; and test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
+always clean and only the model changed.

@@ -1,18 +1,17 @@
 \subsection{Baseline reproduced, then beaten (\eb{})}
 \label{sec:baseline}
 
-\textbf{The baseline.} NRMS \cite{wu2019nrms} is a neural recommender with two parts: a news
-encoder that turns each article into a vector, and a user encoder that uses attention over the
-user's clicked articles to decide which past clicks matter for the current prediction. We ran the
-organisers' \texttt{ebnerd\_nrms\_docvec.py} unmodified on \eb{} small with the provided document
-vectors, history size 20, 4 negatives per positive, batch 32 and seed 16. It reached val AUC
-\textbf{0.6484} (best epoch 3, early-stopped at 7, 54 minutes on 16 CPU cores of a cluster node).
+\textbf{The baseline.} NRMS \cite{wu2019nrms} encodes each article as a vector and builds the user
+from attention over their clicked articles. We ran the organisers' \texttt{ebnerd\_nrms\_docvec.py}
+unmodified on \eb{} small with the provided document vectors, history size 20, 4 negatives per
+positive, batch 32, seed 16: val AUC \textbf{0.6484} (best epoch 3, early-stopped at 7, 54 minutes
+on 16 CPU cores of a cluster node).
 
 \textbf{That number is not comparable to ours.} The benchmark script trains on the organisers'
 train and validation blocks together and validates on its own last day, which in our split means
-it trains on our val and test impressions. So we also drove the same model, settings, vectors and
-data loader from our temporal split: train on our train, stop early on our val, score our test
-once. That run is the baseline we compare against.
+training on our val and test impressions. So we drove the same model, settings, vectors and loader
+from our temporal split instead: train on our train, stop early on our val, score test once. That
+run is the baseline below.
 
 \begin{table*}[t]
 \centering\small
@@ -34,15 +33,15 @@ identical 64,365 val and 244,647 test impressions, aligned by impression id.}
 \end{table*}
 
 \textbf{The one principled change: a longer history, 20 to 50 clicks.} The motivation is our own
-measurement. On clean data, the mean-of-history user vector improves steadily as the history
-grows, from 0.5416 at 10 clicks to 0.5545 at 100 (Appendix~\ref{app:sweeps}). NRMS builds its user
-representation from exactly that history, so it should benefit too. It does: the gain is
-significant on both splits and larger on test than on val, the opposite of what over-fitting to
-val would produce. We stopped at 50 because attention cost grows with the square of the history
-length. A guard asserts every article id reaches the model (coverage 1.0000 on all four checks),
-since a silent id mismatch would train on zero vectors and still report a believable AUC.
+measurement: on clean data the mean-of-history user vector improves steadily with history, 0.5416
+at 10 clicks to 0.5545 at 100 (Appendix~\ref{app:sweeps}), and NRMS builds its user representation
+from exactly that history. It does benefit, significantly on both splits and more on test than val,
+the opposite of what over-fitting to val would produce. We stopped at 50 because attention cost
+grows with the square of history length. A guard asserts every article id reaches the model
+(coverage 1.0000 on all four checks), since a silent id mismatch would train on zero vectors and
+still report a believable AUC.
 
 \textbf{Why our system beats NRMS by about 0.19 AUC.} Not because trees beat attention: NRMS reads
-article content and click order only, and has no click popularity, our most valuable signal. Our
-own content-only arm, \feat{stage1_only}, scores 0.5498 val, close to NRMS. The comparison is
-between a model that sees the click log's behavioural signal and one that does not.
+article content and click order only, with no click popularity, our most valuable signal. Our own
+content-only arm \feat{stage1_only} scores 0.5498 val, close to NRMS. The comparison is between a
+model that sees the click log and one that does not.
