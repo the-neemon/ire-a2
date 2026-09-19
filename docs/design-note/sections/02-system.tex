@@ -30,14 +30,11 @@ impression precedes every val impression, which precedes every test impression.}
 to predict Wednesday. \eb{} val begins 23 May 07:00 and test 25 May 07:00; \mind{} uses the last
 day of its training log as val and its dev log as test.
 
-\textbf{Metric: per-impression AUC}, computed inside each impression and averaged over those with
-both a click and a non-click. Pooling candidates across impressions would reward features that
-merely differ between impressions, and the effect is large: freshness reads 0.5861 pooled against
-0.5087 per impression.
-
-\textbf{Significance: paired bootstrap 95\% intervals} \cite{efron1993}, 1,000 resamples, both
-systems scored on the \emph{same} resampled impressions so their correlated errors cancel. A gain
-counts only if its interval excludes zero. Selection happens on val; test is scored once.
+\textbf{Metric: per-impression AUC}, averaged over impressions containing both a click and a
+non-click, never pooled across impressions. \textbf{Significance: paired bootstrap 95\% intervals},
+1,000 resamples on shared impressions; a gain counts only if its interval excludes zero. Selection
+happens on val and test is scored once. Both choices, and what pooling would have cost, are defined
+in Appendix~\ref{app:background}.
 
 \subsection{Architecture: retrieve, then re-rank}
 
@@ -72,22 +69,20 @@ article. Stage two touches only the candidates, so it can afford per-candidate f
 \end{figure*}
 
 \textbf{Stage one, candidate generation} (carried from Assignment 1). \emph{BM25}
-\cite{robertson2009,lu2024bm25s} scores an article by the rare words it shares with a query built
-from the titles of the user's last $N$ clicks ($N=30$ on \eb{}, $100$ on \mind{}), with stemming on
-for both languages and a Danish stopword list. The \emph{semantic} retriever takes the mean of the
-user's clicked-article vectors and finds nearest neighbours by cosine with an exact FAISS
-\texttt{IndexFlatIP} \cite{johnson2019faiss}. Vectors are the provided 768-dimensional
-\texttt{contrastive\_vector} for \eb{} and 384-dimensional \texttt{all-MiniLM-L6-v2}
-\cite{reimers2019} for \mind{}, both chosen by measurement in Assignment 1. The two scores are
-standardised within each pool and mixed linearly, weight chosen on val. Each retriever keeps its
-top 200. Both indexes are held in RAM.
+\cite{robertson2009,lu2024bm25s} over a query built from the titles of the user's last $N$ clicks
+($N=30$ on \eb{}, $100$ on \mind{}), stemming on for both languages, Danish stopword list. The
+\emph{semantic} retriever takes the mean of the user's clicked-article vectors and finds nearest
+neighbours by cosine with an exact FAISS \texttt{IndexFlatIP} \cite{johnson2019faiss}. Vectors are
+the provided 768-dimensional \texttt{contrastive\_vector} for \eb{} and 384-dimensional
+\texttt{all-MiniLM-L6-v2} \cite{reimers2019} for \mind{}, both chosen by measurement in
+Assignment 1. The two scores are standardised within each pool and mixed linearly, weight chosen on
+val. Each retriever keeps its top 200. Both indexes are held in RAM.
 
-\textbf{Stage two, the re-ranker.} A LightGBM \cite{ke2017lightgbm} gradient-boosted tree model
-with the \term{LambdaRank} objective \cite{burges2010}, which learns from pairs of candidates
-inside one impression weighted by how much swapping them would change nDCG, so training optimises
-the ranking rather than a click probability. We measured that choice rather than assuming it
+\textbf{Stage two, the re-ranker.} LightGBM \cite{ke2017lightgbm} with the \term{LambdaRank}
+objective \cite{burges2010}, measured against a binary objective rather than assumed
 (Table~\ref{tab:choices}). Settings: learning rate 0.05, 31 leaves, at least 50 rows per leaf,
 90\% feature and row subsampling, up to 400 rounds with early stopping on val nDCG, seed 13.
+Appendix~\ref{app:background} defines both retrieval scores and the objective.
 
 \subsection{Features and the behaviour-window boundary}
 

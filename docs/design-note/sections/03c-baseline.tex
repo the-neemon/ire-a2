@@ -1,11 +1,10 @@
 \subsection{Baseline reproduced, then beaten (\eb{})}
 \label{sec:baseline}
 
-\textbf{The baseline.} NRMS \cite{wu2019nrms} encodes each article as a vector and builds the user
-from attention over their clicked articles. We ran the organisers' \texttt{ebnerd\_nrms\_docvec.py}
-unmodified on \eb{} small with the provided document vectors, history size 20, 4 negatives per
-positive, batch 32, seed 16: val AUC \textbf{0.6484} (best epoch 3, early-stopped at 7, 54 minutes
-on 16 CPU cores of a cluster node).
+\textbf{The baseline.} NRMS \cite{wu2019nrms} (Appendix~\ref{app:background}), run from the
+organisers' \texttt{ebnerd\_nrms\_docvec.py} unmodified on \eb{} small with the provided document
+vectors, history size 20, 4 negatives per positive, batch 32, seed 16: val AUC \textbf{0.6484}
+(best epoch 3, early-stopped at 7, 54 minutes on 16 CPU cores of a cluster node).
 
 \textbf{That number is not comparable to ours.} The benchmark script trains on the organisers'
 train and validation blocks together and validates on its own last day, which in our split means

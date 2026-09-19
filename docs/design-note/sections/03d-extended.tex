@@ -40,9 +40,6 @@ BM25's, so it is not collapsing onto a few popular stories. It does cost a littl
 coverage: 0.2051 against 0.2026 on \eb{} test and 0.0529 against 0.0494 on \mind{}, roughly 3 to
 7\% fewer distinct articles ever surfacing. That is the real trade and it is small.
 
-\textbf{Coverage is quoted without an interval, on purpose.} It counts \emph{distinct} articles
-rather than averaging over impressions, and a bootstrap draws only about 63\% of them, so articles
-only the missing impressions would have surfaced simply vanish and every resample undercounts. Our
-own attempt makes the bias visible: coverage on \eb{} test is 0.2067 for BM25 while the resampled
-spread is [0.1875, 0.1920], an ``interval'' excluding the value it describes. We report the point
-estimate and keep the spread as a diagnostic.
+\textbf{Coverage is quoted without an interval, on purpose}, because a bootstrap systematically
+undercounts a distinct-item statistic. Our own failed attempt is the demonstration and is in
+Appendix~\ref{app:beyond}.

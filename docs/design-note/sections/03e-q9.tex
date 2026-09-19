@@ -46,17 +46,9 @@ catch. We confirmed the stronger one is live by mutation rather than argument, s
 window to 12\,h or unbounded without rebuilding makes both boundary tests fail. The suite is
 \textbf{29 passed, 6 skipped, 0 failed}.
 
-\textbf{The leak we found, and what fixing it did.} \eb{} ships its history in two blocks, each
-describing clicks before \emph{that block} begins. Our feature builder merged both, letting the
-later block overwrite the earlier for 11,658 users. Our val split is carved from the earlier
-block, so val impressions were described by history from their own future:
-\textbf{99.8\% of validation and 99.9\% of training impressions were affected}, while test was
-clean at 0.0\% because it comes from the later block itself (Appendix~\ref{app:leak}).
-
-We found it by chasing a metric discrepancy, not with a test: two implementations of the same user
-vector scored 0.6473 and 0.5506, and making one reproduce both numbers with only the history source
-changed confirmed a $+$0.0967 inflation on that feature. The fix reads one block per split, covered
-by a test that fails on injection. Two consequences show the leak was real. The read-time-weighted
-user vector's apparent $+$0.0085 contribution fell to $+$0.0002, not significant, so its entire
-value had been the leak; and test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
-always clean and only the model changed.
+\textbf{We also found a real leak in our own code, and fixing it raised accuracy.} Merging \eb{}'s
+two history blocks described \textbf{99.8\% of validation and 99.9\% of training impressions with
+history from their own future}; test was clean at 0.0\%. It was worth $+$0.0967 on the affected
+feature, and after the fix test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
+always clean and only the model changed. How we found it, and the evidence that the fix was right,
+are in Appendix~\ref{app:leak}.

@@ -1,5 +1,57 @@
-\section{The engagement leak, measured}
+\section{Background: the methods this note uses}
+\label{app:background}
+
+Brief definitions, moved out of the body so the body can stay results-only.
+
+\textbf{BM25} \cite{robertson2009,lu2024bm25s} is a lexical retrieval score. It rewards an article
+for sharing words with the query, weights each word by how rare it is across the collection, and
+saturates the reward so a word repeated ten times does not count ten times. Our query is the
+concatenated titles of the user's last $N$ clicks.
+
+\textbf{LambdaRank} \cite{burges2010} is the training objective of the re-ranker. Instead of
+predicting a click probability per candidate, it looks at \emph{pairs} of candidates inside one
+impression and weights each pair by how much swapping them would change nDCG. Training therefore
+optimises the ordering that the metric actually measures. Our alternative, a plain binary
+objective, is priced in Table~\ref{tab:choices}.
+
+\textbf{Per-impression AUC} is the probability that a randomly chosen clicked candidate outranks a
+randomly chosen unclicked one, computed \emph{inside} a single impression and then averaged over
+impressions that contain both. The alternative, pooling every candidate from every impression into
+one ranking, measures something else: it rewards a feature for separating busy impressions from
+quiet ones even when that feature cannot reorder anything within an impression. The gap is large
+in practice. Article freshness reads \textbf{0.5861 pooled against 0.5087 per impression}, so
+pooling would credit it with real skill it does not have.
+
+\textbf{The paired bootstrap} \cite{efron1993} is how every interval in this note is produced. We
+resample impressions with replacement 1,000 times and recompute the metric on each resample. It is
+\emph{paired} because both systems are scored on the \emph{same} resampled impressions, so the
+variance that comes from some impressions being intrinsically easier cancels between them. An
+unpaired interval on two systems that rank the same impressions is dominated by that shared
+variance and is far too wide to resolve the differences we care about. A gain counts only when its
+interval excludes zero.
+
+\textbf{NRMS} \cite{wu2019nrms} is the neural baseline. It encodes each article into a vector, then
+builds a user representation by attention over that user's clicked articles, so the model learns
+which past clicks matter for the current candidate. It reads article content and click order only,
+which is exactly why it cannot see the popularity signal our re-ranker leans on.
+
+\section{The engagement leak: how we found it}
 \label{app:leak}
+
+\eb{} ships its history in two blocks, each describing clicks from before \emph{that block}
+begins. Our feature builder merged both and let the later block overwrite the earlier for 11,658
+users. Our val split is carved out of the earlier block, so val impressions were described by
+history drawn from their own future.
+
+\textbf{We found it by chasing a metric discrepancy, not with a test.} Two implementations of the
+same user vector scored 0.6473 and 0.5506. Making one reproduce both numbers with only the history
+source changed confirmed the cause and priced it: a $+$0.0967 inflation on that feature. The fix
+reads one block per split, and a new test that fails on injection covers it.
+
+\textbf{Two consequences show the leak was real and the fix was right.} The read-time-weighted user
+vector's apparent $+$0.0085 contribution fell to $+$0.0002, not significant, so its entire value
+had been the leak. And test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
+always clean and only the model, now trained without future information, changed.
 
 \begin{table*}[t]
 \centering\small
@@ -16,6 +68,64 @@ test & 244,647 & 244,647 & 0 (0.0\%) \\
 (Section~\ref{sec:q9}). Test was clean because it is drawn from the later block itself.}
 \label{tab:leak}
 \end{table*}
+
+\section{Checks that checked nothing}
+\label{app:vacuous}
+
+Six checks on this project passed while testing nothing. They are listed because the failure mode
+is the same each time, an assertion that ran against the wrong object, and because it is the
+reason every leakage assertion here is now verified by injection before it is trusted.
+
+\begin{enumerate}
+\item A \mind{} leakage test filtered every row away before asserting. Its history column is a
+  \emph{null} list of dtype \texttt{List(Datetime)}, not an empty list, so \texttt{.list.len()}
+  returned null, a filter for $=0$ matched nothing, and the test reported green over 95,071 rows
+  while checking none of them.
+\item The anti-gaming guard scanned zero files after the Assignment-1 port moved everything under
+  \texttt{src/}. It globbed directories that had stopped existing. It now asserts a minimum file
+  count so an empty scan fails.
+\item An install check trusted \texttt{pip}'s exit code while \texttt{import tensorflow} had been
+  broken the whole time. It now imports and multiplies two matrices.
+\item A job monitor matched its own command line in the process table and reported the job alive
+  after it had died.
+\item The leakage tests covered \feat{pop_causal} only, so the engagement arrays the model also
+  reads were never checked. That is what let the block-merge leak survive (Appendix~\ref{app:leak}).
+\item \textbf{An injection test deleted by its own name.} Two test functions in one file shared a
+  name, so the second definition replaced the first and the popularity injection check ran
+  \textbf{zero times} from the day it was written. Reading the file cannot catch this. Counting
+  collected tests can: \textbf{12 collected against 15 written} is what exposed it.
+\end{enumerate}
+
+\textbf{A guard that fires on prose teaches you to delete the prose.} The same anti-gaming test
+searched source as raw text and failed on \feat{src/rerank/q9.py}, whose only mention of the
+lifetime columns is a comment recording that \mind{} has none of them. Allow-listing the file would
+have passed the suite while removing the guard from a module that never read those columns. It now
+parses the source and inspects identifiers and string literals in executable code, so a comment
+costs nothing and \feat{pl.col("total_inviews")} still fails. It remains a static scan: a column
+name assembled at runtime would slip past, and closing that needs a runtime check on what the
+scorer reads, which we did not build.
+
+\section{Metric names that hid two definitions}
+\label{app:names}
+
+Three times a number failed to reproduce and the cause was the definition, not the code. In each
+case it reproduced on one dataset and not the other, because these definitions only diverge when
+impressions carry several clicks, 28.8\% on \mind{} against 0.5\% on \eb{}. \textbf{When a number
+fails on exactly one dataset, check the definition first.}
+
+\begin{itemize}
+\item \textbf{Hit rate labelled recall.} Our retrieval stage printed the share of impressions with
+  at least one clicked article retrieved, under the name for the share of clicked articles
+  retrieved. On \mind{} test they read 0.0333 and 0.0226, and reconcile exactly:
+  $0.0333 \times 0.6775 = 0.0226$.
+\item \textbf{Two MRRs.} \mind{}'s official scorer averages reciprocal rank over \emph{every}
+  clicked article; the common definition credits only the first. For one unchanged ranking they
+  give 0.2693 and 0.3108, with AUC and nDCG identical. Our harness reports both and the ``all
+  clicks'' column is the one comparable to the leaderboard.
+\item \textbf{Two user vectors.} Two implementations of the same feature read different history
+  files and scored 0.6473 and 0.5506. That discrepancy is what uncovered the leak in
+  Appendix~\ref{app:leak}.
+\end{itemize}
 
 \section{Full ablation grids}
 \label{app:grids}
@@ -46,9 +156,17 @@ AUC sits below the shipped system's.
 \input{tables/q5_beyond_test}
 \caption{Top-10 beyond-accuracy metrics, test split. Diversity is the share of top-10 pairs from
 different categories; novelty is mean self-information in bits, so higher is less obvious;
-coverage is the share of the catalogue that ever reaches a top 10. Coverage carries no interval
-for the reason given in Section~\ref{sec:extended}.}
+coverage is the share of the catalogue that ever reaches a top 10.}
 \end{table*}
+
+\textbf{Coverage carries no interval, and our own failed attempt at one is the reason.} It counts
+\emph{distinct} articles rather than averaging over impressions, so it is not a mean and the
+bootstrap does not apply. A resample draws only about 63\% of the impressions, and every article
+that only the missing impressions would have surfaced simply vanishes, so every resample
+undercounts. The bias is visible in our numbers: coverage on \eb{} test is \textbf{0.2067} for BM25
+while the resampled spread is \textbf{[0.1875, 0.1920]}, an ``interval'' that excludes the value it
+is meant to describe. We report the point estimate and keep the spread only as a diagnostic.
+Diversity and novelty are means over impressions and do take intervals.
 
 \section{Scaling measurements}
 \label{app:scaling}

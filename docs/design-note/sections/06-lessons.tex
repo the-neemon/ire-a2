@@ -1,16 +1,6 @@
 \section{Observations that generalise}
 \label{sec:lessons}
 
-\textbf{One metric name can hide two definitions.} This happened three times. Our retrieval stage
-printed a \emph{hit rate} (impressions with at least one clicked article retrieved) labelled
-\emph{recall} (share of clicked articles retrieved); on \mind{} test they read 0.0333 and 0.0226
-and reconcile exactly, $0.0333 \times 0.6775 = 0.0226$. \mind{}'s official MRR averages over all
-clicks while ours credited the first, 0.2693 against 0.3108 for one ranking. And two
-implementations of ``the user vector'' read different history files, which is how we found the leak
-in Section~\ref{sec:q9}. Each reproduced on one dataset and not the other, because the definitions
-only diverge when impressions have several clicks (28.8\% on \mind{}, 0.5\% on \eb{}). When a
-number fails on exactly one dataset, check the definition first.
-
 \textbf{A feature's isolated score is not its contribution.} Impression size, \feat{n_cands}, is
 identical for every candidate in an impression, so alone it scores exactly 0.5000, yet removing it
 costs $-$0.0066 test AUC, the second largest loss in the grid: it helps only through interactions,
@@ -32,24 +22,19 @@ real $+$0.0025 [$+$0.0002, $+$0.0047], while Danish stemming stayed flat within 
 intervals tight enough to exclude the $+$22 to $+$36\% recall gain Assignment~1 had claimed. We now
 re-run any interval spanning zero at larger scale before recording a verdict.
 
-\textbf{A check must test the artifact, not a proxy for it.} We found \textbf{six} checks that
-passed without checking anything: a \mind{} leakage test that filtered every row away (a null list
-is not an empty list), an anti-gaming guard that scanned zero files after a directory move, an
-install check that trusted an exit code while the import was broken, a job monitor that matched its
-own command line, leakage tests that never looked at the engagement arrays the model reads, and an
-injection test \emph{deleted by its own name}, two test functions in one file sharing a name so the
-second replaced the first and the popularity check ran zero times from the day it was written.
-Reading the file cannot catch that; counting collected tests can, and 12 collected against 15
-written is what exposed it. Every test must now fail on an injected violation before it counts, and
-how many actually run is part of what we check.
+\textbf{A check must test the artifact, not a proxy for it.} We found \textbf{six} checks on this
+project that passed while testing nothing, the last of them an injection test that two functions
+sharing a name had silently deleted, so it ran zero times from the day it was written. Reading the
+file cannot catch that; counting collected tests can, and \textbf{12 collected against 15 written}
+is what exposed it. Every test must now fail on an injected violation before it counts, and how
+many actually run is part of what we check. All six, and the related case of a guard that fired on
+a comment rather than on code, are in Appendix~\ref{app:vacuous}.
 
-\textbf{A guard that fires on prose teaches you to delete the prose.} That same anti-gaming test
-searched source as raw text and failed on \feat{src/rerank/q9.py}, whose only mention of the
-lifetime columns is a comment recording that \mind{} has none. Allow-listing the file would have
-passed the suite while removing the guard from a module that never read them. It now parses the
-code, so a comment costs nothing and \feat{pl.col("total_inviews")} still fails. It remains a
-static scan: a column name assembled at runtime would still slip past, and closing that needs a
-runtime check on what the scorer reads, which we did not build.
+\textbf{When a number fails on exactly one dataset, check the definition before the code.} Three
+of our metrics turned out to carry two definitions each, and every one reproduced on one dataset
+and not the other, because the definitions diverge only when impressions carry several clicks
+(28.8\% on \mind{} against 0.5\% on \eb{}). The three are in Appendix~\ref{app:names}; one of them
+is how we found the leak.
 
 \section{Limitations and open questions}
 \label{sec:limits}
