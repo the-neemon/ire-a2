@@ -1,15 +1,15 @@
 \subsection{Before and after re-ranking}
 \label{sec:beforeafter}
 
-\begin{table}[tb]
-\centering\footnotesize
+\begin{table*}[t]
+\centering\scriptsize
 \input{tables/q5_overall_test}
 \caption{All accuracy metrics on the test split, with 95\% bootstrap intervals beneath each mean.
 ``Stage one'' rows are the retrieval scores ranking the same candidates; the re-ranker reorders
 them. $^\ast$Lifetime popularity is not available at serving time and is reported only to price
 what it would buy (Section~\ref{sec:q9}). Validation-split figures are in Appendix~\ref{app:val}.}
 \label{tab:overall}
-\end{table}
+\end{table*}
 
 \textbf{Two baselines appear in this report and they are not the same thing.} Here ``stage one''
 is the fused retrieval score ranking the candidates directly (\EBFusedTest{} on test). The

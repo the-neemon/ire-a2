@@ -5,8 +5,8 @@ Every choice below was made by measuring the alternative, one change at a time, 
 bootstrap interval. Rows marked ``10 features'' were measured before the feature set grew; the two
 feature rows are the incremental steps to the shipped \eb{} model.
 
-\begin{table}[tb]
-\centering\small
+\begin{table*}[t]
+\centering\footnotesize
 \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.35cm}cc>{\raggedright\arraybackslash}p{1.75cm}@{}}
 \toprule
 choice & compared against & val $\Delta$ [95\% CI] & test $\Delta$ [95\% CI] & verdict \\
@@ -27,7 +27,7 @@ stemming off, \eb{} & stemming on & \dcell{$-$0.0003}{[$-$0.0019, $+$0.0014]} & 
 \feat{stage1_only} arm of the 17-feature grid. $^\dagger$Title-only documents also cost val
 recall@200 by $-$0.0024 [$-$0.0035, $-$0.0013], and recall is what stage two consumes.}
 \label{tab:choices}
-\end{table}
+\end{table*}
 
 Three of these deserve a sentence. \textbf{The objective matters}: with a binary objective the
 model's most-used features become absolute freshness, while LambdaRank leans on popularity

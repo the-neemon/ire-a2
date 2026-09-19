@@ -1,7 +1,7 @@
 \section{The engagement leak, measured}
 \label{app:leak}
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\small
 \begin{tabular}{@{}lccc@{}}
 \toprule
@@ -15,7 +15,7 @@ test & 244,647 & 244,647 & 0 (0.0\%) \\
 \caption{Future-click contamination in the engagement features before the fix
 (Section~\ref{sec:q9}). Test was clean because it is drawn from the later block itself.}
 \label{tab:leak}
-\end{table}
+\end{table*}
 
 \section{Full ablation grids}
 \label{app:grids}
@@ -26,39 +26,39 @@ removed feature helped. Bold marks intervals excluding zero. These grids were ru
 exposure features were added (17 features on \eb{}, 12 on \mind{}), which is why their full-model
 AUC sits below the shipped system's.
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\scriptsize
 \input{tables/ablation_ebnerd}
 \caption{\eb{} small, 17-feature model, 64,365 val and 244,647 test impressions.}
-\end{table}
+\end{table*}
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\scriptsize
 \input{tables/ablation_mind}
 \caption{\mind{} small, 12-feature model, 61,894 val and 73,152 test impressions.}
-\end{table}
+\end{table*}
 
 \section{Beyond-accuracy metrics}
 \label{app:beyond}
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\footnotesize
 \input{tables/q5_beyond_test}
 \caption{Top-10 beyond-accuracy metrics, test split. Diversity is the share of top-10 pairs from
 different categories; novelty is mean self-information in bits, so higher is less obvious;
 coverage is the share of the catalogue that ever reaches a top 10. Coverage carries no interval
 for the reason given in Section~\ref{sec:extended}.}
-\end{table}
+\end{table*}
 
 \section{Scaling measurements}
 \label{app:scaling}
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\small
 \input{tables/bench_scaling}
 \caption{Latency against corpus size in milliseconds, the numbers behind
 Figure~\ref{fig:scaling}. Same machine and same model throughout.}
-\end{table}
+\end{table*}
 
 \section{Isolated-feature sweeps}
 \label{app:sweeps}
@@ -67,7 +67,7 @@ Per-impression AUC of one feature used alone as the score, on val. An isolated s
 absorbed by a correlated neighbour, which makes it a clean screen, but a winner here is only a
 candidate: the popularity window gained $+$0.0447 in isolation and $+$0.0034 val inside the ranker.
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\small
 \input{tables/sweeps}
 
@@ -76,16 +76,16 @@ candidate: the popularity window gained $+$0.0447 in isolation and $+$0.0034 val
 \caption{Top left: the click-popularity window. Top right: dropping history clicks with low scroll
 depth (\eb{}, 100 clicks). Middle: the recency half-life, flat to four decimals over a 168$\times$
 range. Bottom: history length and read-time weighting of the user vector on clean history.}
-\end{table}
+\end{table*}
 
 \section{Validation-split evaluation}
 \label{app:val}
 
-\begin{table}[H]
+\begin{table*}[t]
 \centering\scriptsize
 \input{tables/q5_overall_val}
 \caption{All accuracy metrics on val with 95\% intervals.}
-\end{table}
+\end{table*}
 
 \section{Reproducing the numbers}
 \label{app:repro}
@@ -94,6 +94,7 @@ Every table in this note is generated from the results files by
 \texttt{docs/design-note/make\_tables.py}; every measured number also has a row in
 \texttt{docs/FACTS.md} or \texttt{docs/ABLATIONS.md} with the command that produced it.
 
+\begin{figure*}[t]
 \begin{small}
 \begin{verbatim}
 make venv && make download
@@ -112,16 +113,15 @@ python -m pytest tests/
 python -m src.submission.validate ebnerd submissions/ebnerd_predictions.zip
 \end{verbatim}
 \end{small}
+\end{figure*}
 
 \section{Leaderboard screenshots}
 \label{app:screenshots}
 
 \mind{}, Codabench competition 13967, submission 932812, user \texttt{namsyn}, rank 54,
-scored 2026-09-19 09:23.
-
-\begin{center}
-\includegraphics[width=\linewidth]{figures/mind-leaderboard-2026-09-19.png}
-\end{center}
+scored 2026-09-19 09:23: AUC 0.6473, MRR 0.3174, nDCG@5 0.3448, nDCG@10 0.4010. The image is
+in the repository at \path{docs/report/screenshots/} rather than
+reproduced here.
 
 \eb{}, Codabench competition 2469: \textbf{no screenshot, and not for want of submitting.} The
 prediction file was built, validated against all five structural checks, scored on a cluster node

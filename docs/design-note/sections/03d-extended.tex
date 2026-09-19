@@ -8,13 +8,13 @@ both datasets have zero training clicks, so a percentile over the whole catalogu
 and would put every impression in the head slice. Taking it over articles seen in training gives a
 head threshold of 349 clicks on \eb{} and leaves head at 803 impressions, 0.3\% of the split.
 
-\begin{table}[tb]
-\centering\footnotesize
+\begin{table*}[t]
+\centering\scriptsize
 \input{tables/q5_slices_test}
 \caption{Per-impression AUC by slice, test split, with 95\% intervals. ``Gain'' is the re-ranker
 minus fused retrieval. $^\ast$Lifetime popularity, not servable, shown for comparison.}
 \label{tab:slices}
-\end{table}
+\end{table*}
 
 \textbf{The gain is uniform across the slices that matter}, with cold, warm and tail all improving
 by about 0.25 AUC. \textbf{Cold and warm users are now indistinguishable} (0.7910 and 0.7908),

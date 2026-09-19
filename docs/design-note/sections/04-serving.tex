@@ -9,13 +9,13 @@ user notices.
 
 \subsection{Index memory, in RAM and on disk}
 
-\begin{table}[tb]
-\centering\small
+\begin{table*}[t]
+\centering\footnotesize
 \input{tables/bench_footprint}
 \caption{Footprints measured separately in memory and serialised, since the two differ by
 different factors per structure.}
 \label{tab:footprint}
-\end{table}
+\end{table*}
 
 The dense index is the largest structure despite covering the fewest objects: a vector spends
 memory on every dimension of every article, while an inverted index spends it only on terms that
@@ -24,12 +24,12 @@ raw matrix, with nothing to compress or reconstruct. Both facts matter for the s
 
 \subsection{Latency of a single request}
 
-\begin{table}[tb]
-\centering\small
+\begin{table*}[t]
+\centering\footnotesize
 \input{tables/bench_latency}
 \caption{End-to-end latency over \BenchRequests{} single requests on \eb{} small, stage by stage.}
 \label{tab:latency}
-\end{table}
+\end{table*}
 
 The median request takes \BenchPfifty{} ms and the 99th percentile \BenchPninetynine{} ms. Exact
 embedding search is \BenchAnnShare\% of the median and the re-ranker \BenchRerankShare\%, so the
@@ -57,13 +57,13 @@ thread on the same core shares an execution unit and adds much less than a real 
 Rather than extrapolate one measurement under an assumed growth law, which is the assumption in
 question, we subsampled the corpus and re-timed every stage.
 
-\begin{figure}[tb]
+\begin{figure*}[t]
 \centering
 \input{tables/bench_scaling_plot}
 \caption{Per-stage median latency against corpus size, both axes logarithmic. The figures
 behind it are in Appendix~\ref{app:scaling}.}
 \label{fig:scaling}
-\end{figure}
+\end{figure*}
 
 \textbf{Exact embedding search breaks first.} Over a \BenchCorpusGrowth$\times$ corpus it grows
 \BenchAnnGrowth$\times$, where a flat scan should be at worst linear. The cause is the memory

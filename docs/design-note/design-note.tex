@@ -2,7 +2,7 @@
 %   python make_tables.py && pdflatex design-note.tex && pdflatex design-note.tex
 % Every table under tables/ and every number macro in tables/numbers.tex is generated from
 % results/*.json by make_tables.py; none is typed by hand.
-\documentclass[11pt]{article}
+\documentclass[11pt,twocolumn]{article}
 
 \usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
@@ -24,6 +24,12 @@
 \pgfplotsset{compat=1.17}
 \usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!50!black]{hyperref}
 
+% Two-column at 11pt gives a 3.4in measure. Without a wider gutter and tolerant line
+% breaking, dense text full of inline code overflows constantly.
+\setlength{\columnsep}{20pt}
+\tolerance=1500
+\emergencystretch=2em
+\hbadness=4000
 \setlist{nosep,leftmargin=*}
 \titlespacing*{\section}{0pt}{9pt}{4pt}
 \titlespacing*{\subsection}{0pt}{6pt}{2pt}

@@ -6,7 +6,7 @@ page views, read time) summed over the whole collection period, so for any impre
 include the future and cannot exist when serving. We trained the same ranker on the same rows with
 and without them. The difference is small next to what the honest system already earns:
 
-\begin{table}[tb]
+\begin{table*}[t]
 \centering\small
 \begin{tabular}{@{}lc@{}}
 \toprule
@@ -21,7 +21,7 @@ difference, paired bootstrap & \QnineDelta{} \QnineCI \\
 \caption{Metrics with and without serving-unavailable features, measured on the 10-feature
 model with the 6\,h window.}
 \label{tab:q9}
-\end{table}
+\end{table*}
 
 In Assignment~1 the same totals were worth $+$0.042 to $+$0.075, more than our whole semantic
 axis, because they were compared against systems with no popularity signal at all. Here they

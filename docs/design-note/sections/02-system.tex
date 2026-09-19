@@ -9,8 +9,8 @@ logs: what users clicked, how often each article has been clicked or shown, and 
 
 \subsection{Data and evaluation protocol}
 
-\begin{table}[tb]
-\centering\small
+\begin{table*}[t]
+\centering\footnotesize
 \begin{tabular}{@{}lrcrr@{}}
 \toprule
  & & & \multicolumn{2}{c}{leaderboard test set} \\
@@ -24,7 +24,7 @@ dataset & articles & train / val / test impressions & impressions & articles \\
 \caption{Development data and the held-out leaderboard sets. Splits are temporal: every train
 impression precedes every val impression, which precedes every test impression.}
 \label{tab:data}
-\end{table}
+\end{table*}
 
 \textbf{Splits are by time, never random.} A random split would let the model learn from
 Thursday to predict Wednesday, which no deployed system can do. \eb{} val begins 23 May 07:00 and
@@ -41,7 +41,7 @@ counts only if its interval excludes zero. Selection happens on val; test is sco
 
 \subsection{Architecture: retrieve, then re-rank}
 
-\begin{figure}[tb]
+\begin{figure*}[t]
 \centering
 \begin{tikzpicture}[
   box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, inner sep=2.5pt,
@@ -69,7 +69,7 @@ counts only if its interval excludes zero. Selection happens on val; test is sco
 \caption{The two-stage pipeline. Stage one touches every article, so it must stay cheap per
 article. Stage two touches only the candidates, so it can afford per-candidate features.}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
 \textbf{Stage one, candidate generation} (carried from Assignment 1). \emph{BM25}
 \cite{robertson2009,lu2024bm25s} is a lexical score: the query is the titles of the user's last
@@ -99,7 +99,7 @@ search over each article's sorted event times with a strict ``$< t$'' cut, so an
 $t$ is excluded. Tests assert the boundary on every split, and each test was checked by injecting a
 future click and confirming it fails (Section~\ref{sec:q9}).
 
-\begin{table}[tb]
+\begin{table*}[t]
 \centering\small
 \begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}Xcc@{}}
 \toprule
@@ -129,7 +129,7 @@ total & & 22 & 17 \\
 inside one impression: a popularity of 200 dominates a quiet impression and is ordinary in a busy
 one.}
 \label{tab:features}
-\end{table}
+\end{table*}
 
 \textbf{Five features cannot exist on \mind{}, and we drop them explicitly.} \mind{}'s publication
 time is null for all 65,238 articles, and it ships no read-time or scroll data at all. A column of

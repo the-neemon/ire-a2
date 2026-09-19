@@ -14,7 +14,7 @@ it trains on our val and test impressions. So we also drove the same model, sett
 data loader from our temporal split: train on our train, stop early on our val, score our test
 once. That run is the baseline we compare against.
 
-\begin{table}[tb]
+\begin{table*}[t]
 \centering\small
 \begin{tabular}{@{}lcc@{}}
 \toprule
@@ -31,7 +31,7 @@ our two-stage re-ranker & \EBFinalVal & \EBFinalTest \\
 \caption{NRMS reproduced and beaten with one change, paired bootstrap. Both NRMS arms score the
 identical 64,365 val and 244,647 test impressions, aligned by impression id.}
 \label{tab:nrms}
-\end{table}
+\end{table*}
 
 \textbf{The one principled change: a longer history, 20 to 50 clicks.} The motivation is our own
 measurement. On clean data, the mean-of-history user vector improves steadily as the history

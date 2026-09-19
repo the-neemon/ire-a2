@@ -14,7 +14,7 @@ do contain. We also dropped \feat{bm25} from the submission for cost rather than
 scores every article for every distinct history, which projects to about 1.6 hours on
 \mind{}-large, and it is worth only $+$0.0004 test AUC in the ablation.
 
-\begin{table}[tb]
+\begin{table*}[t]
 \centering\small
 \begin{tabular}{@{}lcc@{}}
 \toprule
@@ -29,7 +29,7 @@ uploaded $-$ reported, paired bootstrap & & $-$0.0556 [$-$0.0565, $-$0.0547] \\
 \caption{The gap between what we report and what we upload, measured on our own labelled test
 split. The \mind{} upload uses 11 features and scores 0.6460 on our \mind{} test split.}
 \label{tab:submitgap}
-\end{table}
+\end{table*}
 
 \textbf{Scale and validation.} The \eb{} test set has 13,536,710 impressions and 205,925,868
 candidate pairs; \mind{}-large has 2,370,727. Neither fits in memory, so prediction streams in
@@ -43,8 +43,8 @@ permutation of $1..n$. Row order matters most, since ranks are positional and a 
 scores as a plausible bad model rather than failing. The validator was itself checked by injecting
 five violations and confirming each one fails.
 
-\begin{table}[tb]
-\centering\small
+\begin{table*}[t]
+\centering\footnotesize
 \begin{tabular}{@{}lcccc@{}}
 \toprule
 leaderboard & AUC & MRR & nDCG@5 & nDCG@10 \\
@@ -61,7 +61,7 @@ executes that competition on volunteered compute workers, none were available, a
 first-come-first-served, so providing a machine would not guarantee our own submission is the one
 it picks up. No \eb{} screenshot exists and producing one is not within our control.}
 \label{tab:leaderboard}
-\end{table}
+\end{table*}
 
 \textbf{The \mind{} upload is marginally below our Assignment~1 entry, and that is the honest
 result.} It is not a regression in the re-ranker. \mind{} ships almost no behavioural signal to
