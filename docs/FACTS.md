@@ -934,7 +934,9 @@ ranker gained +0.0034 val and +0.0062 test. That gap is the ordinary ensemble st
 features partially cover for a weaker `pop_causal`, so the isolated measurement is an upper
 bound on what the system can gain, not an estimate of it. Quote the ranker numbers.
 
-## 16. N5: the four unswept constants (A2)
+## 16A. N5: the four unswept constants (A2)
+
+*Numbered 16A and 17A. These were appended as 16 and 17 while sections 16 and 17 above already existed, because we were both writing to this file on the same day. The suffix disambiguates them; no number, result or wording below has been altered. Cross-references elsewhere in the repo point at the suffixed form.*
 
 All four measured on EB-NeRD small val, clean features. Machine: laptop-naman.
 
@@ -944,7 +946,7 @@ That is deliberate, since an isolated number cannot be absorbed by a correlated 
 a LightGBM ablation arm can. It also means a winner here is a **candidate** for a ranker-level
 check, not a shipped result. None of 16.1 to 16.3 has been confirmed through the ranker.
 
-### 16.1 Causal popularity window: the largest unshipped win found so far
+### 16A.1 Causal popularity window: the largest unshipped win found so far
 
 Currently unbounded, counting every click before `t`. Narrowing the lower bound cannot leak,
 since the strict `< t` upper bound is unchanged and a narrower window only drops older clicks.
@@ -968,7 +970,7 @@ been" is a worse signal than "how popular is it right now", which is what a news
 should want. **Not shipped**: it needs a ranker-level ablation with a paired CI first, and that
 changes a feature the whole system leans on.
 
-### 16.2 Recency half-life: flat, and the feature is near useless alone
+### 16A.2 Recency half-life: flat, and the feature is near useless alone
 
 | half-life | 1 h | 3 h | 6 h | 12 h | 24 h | 48 h | 96 h | 168 h |
 |---|---|---|---|---|---|---|---|---|
@@ -982,7 +984,7 @@ where `minus_recency` is indistinguishable from zero on both splits.
 happened and the answer is that the choice is irrelevant. Left at 24.0; there is no reason to
 change it and no reason to tune it.
 
-### 16.3 Scroll completion as a click-quality filter: info.md item 4 is SUPPORTED
+### 16A.3 Scroll completion as a click-quality filter: info.md item 4 is SUPPORTED
 
 `info.md` item 4 proposes dropping history entries the user barely engaged with, and notes it
 "complements rather than duplicates" read-time weighting, so the weighting rejection does not
@@ -1006,7 +1008,7 @@ curve is not simply monotonic. And keeping the best 41% of 100 items is roughly 
 of this may be the profile-size effect from 15.3 rather than quality per se; separating them needs
 a threshold-by-N grid that has not been run.
 
-### 16.4 lambdarank versus binary objective: the choice was right
+### 16A.4 lambdarank versus binary objective: the choice was right
 
 Same ten features, same rows, same order, same seed. Only the objective differs, so the binary
 arm also drops `ndcg` as its early-stopping metric (group structure is irrelevant to its loss)
@@ -1028,14 +1030,14 @@ and `age_hours` taking the top two gain slots ahead of `pop_causal`. A pointwise
 on absolute-freshness features, while the pairwise one leans on the within-impression contrast
 that actually decides the ranking.
 
-## 17. Seven new features, and why leave-one-out cannot choose a feature set (A2)
+## 17A. Seven new features, and why leave-one-out cannot choose a feature set (A2)
 
 Added 2026-09-14: three within-impression transforms (`pop_rank`, `emb_rank`, `pop_rel_max`),
 `ent_overlap` (Jaccard of candidate entities against the user's history entities), a second
 popularity window `pop_24h` with the ratio `pop_velocity`, and `n_cands` (impression size). All
 seven need only click times, categories and entities, so all exist on both datasets.
 
-### 17.1 Where the numbers landed
+### 17A.1 Where the numbers landed
 
 | | EB-NeRD val | EB-NeRD test | MIND val | MIND test |
 |---|---|---|---|---|
@@ -1047,7 +1049,7 @@ seven need only click times, categories and entities, so all exist on both datas
 null effects summed. The feature engineering that works on EB-NeRD is dataset-specific, and
 MIND's ceiling is set by what its corpus lacks rather than by the ranker.
 
-### 17.2 `n_cands`: isolated AUC 0.5000, second-most valuable feature
+### 17A.2 `n_cands`: isolated AUC 0.5000, second-most valuable feature
 
 Impression size is constant within an impression, so it cannot reorder candidates and scores
 **exactly 0.5000** as an isolated feature. Removing it from the full set costs **+0.0056 val and
@@ -1061,7 +1063,7 @@ isolated sweeps in section 16, which should be read with it in mind.
 On MIND it is worth +0.0001 val (not significant) and +0.0009 test. EB-NeRD impressions run 2 to
 73 candidates with median 8; MIND runs to 299 with median 26. The calibration does not transfer.
 
-### 17.3 `cat_match` is the only feature that transfers
+### 17A.3 `cat_match` is the only feature that transfers
 
 +0.0069 EB-NeRD test, +0.0070 MIND test, the top feature on both. Category affinity is the one
 signal that behaves the same on two corpora.
@@ -1070,7 +1072,7 @@ signal that behaves the same on two corpora.
 expect it to work: +0.0001 val, not significant. Mean overlap on EB-NeRD is 0.0029, so shared
 entities are simply too rare to rank on.
 
-### 17.4 The important one: single-arm deltas do not compose
+### 17A.4 The important one: single-arm deltas do not compose
 
 The val grid leaves `pop_causal` (-0.0008) and `user_read` (-0.0005) with significantly
 **negative** single-arm deltas: the model is better without either. The obvious inference is to
