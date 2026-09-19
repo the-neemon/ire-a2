@@ -8,11 +8,17 @@ not an oversight. Every number here also exists in `FACTS.md` (measurements) or 
 (experiments); this file is the narrative view, those two are the ledgers. If they disagree, the
 ledgers win.
 
-**Freshness, 2026-09-16. Nothing here is stale any more.** The metric tables, slices and
-beyond-accuracy figures that were flagged as 10-feature leftovers have been regenerated against
-the shipped 22-feature model, on both datasets, and MIND now has a full harness run of its own.
-The Q4 serving bench was also re-measured against the persisted final model rather than a
-retrained 10-feature stand-in.
+**Freshness, rechecked 2026-09-19.** The metric tables, slices and beyond-accuracy figures that
+were flagged as 10-feature leftovers have been regenerated against the shipped 22-feature model,
+on both datasets, and MIND now has a full harness run of its own. The Q4 serving bench was also
+re-measured against the persisted final model rather than a retrained 10-feature stand-in.
+
+The 2026-09-16 version of this block claimed "nothing here is stale any more" while **two entries
+further down still said otherwise**: the Q3 status read "not done" and the popularity-window
+ablation read "in progress", when both had been completed. Both are corrected below and marked
+with the date they were corrected. The lesson is the one this file keeps relearning, that a
+freshness claim at the top of a document is not evidence about the bottom of it, so the audit that
+produced this line walked every status sentence rather than trusting the header.
 
 | area | state |
 |---|---|
@@ -600,9 +606,21 @@ motivated but unquantified.
 the corpus also shortens the query (7.3). The `ann` verdict is unaffected, but if the report
 quotes those two growth numbers it must quote the caveat with them.
 
-**Q3 is not done.** NRMS reproduction is in progress; the environment took five attempts because
-`ebnerd-benchmark` is TensorFlow with pins that conflict with our pipeline, and the cluster has no
-usable PyPI access.
+**Q3 is done** (updated 2026-09-19; this entry read "not done" while it was). NRMS was reproduced
+on our own temporal split and then beaten:
+
+| EB-NeRD small, our split | val | test |
+|---|---|---|
+| NRMS, benchmark script and protocol (not comparable, trains on our val and test) | 0.6484 | not scored |
+| NRMS baseline, `history_size` 20 | 0.5969 | 0.5938 |
+| NRMS improved, `history_size` 50 | 0.6042 | 0.6032 |
+| our two-stage re-ranker | **0.7885** | **0.7908** |
+
+The one principled change, history 20 to 50, is worth +0.0072 [+0.0058, +0.0088] val and
++0.0094 [+0.0086, +0.0102] test, paired bootstrap on identical impressions. The environment did
+take five attempts, because `ebnerd-benchmark` is TensorFlow with pins that conflict with our
+pipeline and the cluster has no usable PyPI access; that cost is recorded rather than the task
+being unfinished. Evidence: FACTS section 16, `docs/report/q3-nrms-baseline.md`, design note 3.3.
 
 **Open, unexplained.** EB-NeRD BM25 recall@200 was more than 2x better at history N=1 than at any
 larger N in A1, while MIND improves monotonically with more history. **The claim that a semantic
@@ -807,10 +825,17 @@ larger than every per-feature effect in the 13-arm grid except `pop_causal` itse
 single-peaked: 1 h is too noisy, and past 72 h it converges to unbounded because in a two-day
 EB-NeRD window almost every click already falls inside 168 h.
 
-Read plainly, this says the shipped feature measures the wrong thing. "How popular has this
+Read plainly, this said the then-shipped feature measured the wrong thing. "How popular has this
 article ever been" is a worse signal for news than "how popular is it right now". Since
 `pop_causal` is the feature the whole system leans on, a ranker-level ablation with a paired CI
-is required before changing it, and that is in progress.
+was required before changing it.
+
+**RESOLVED** (updated 2026-09-19; this entry read "in progress" while it was). That ablation was
+run and the change shipped. At ranker level the 6 h window beats unbounded by **+0.0034
+[+0.0026, +0.0043] val and +0.0062 [+0.0058, +0.0067] test**, paired bootstrap, significant on
+both (FACTS 17.3). `POP_WINDOW_H` in `src/features/build.py` is now 6.0 for EB-NeRD and left
+unbounded for MIND, where the sweep was never run and where popularity comes from impression
+timestamps rather than per-click history.
 
 **The recency half-life does not matter and the sweep says why.** Flat to four decimals from 1 h
 to 168 h, a 168x range, because the feature barely ranks at all in isolation: 0.5088 against a

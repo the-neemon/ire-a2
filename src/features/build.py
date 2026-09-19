@@ -302,7 +302,7 @@ def build(name: str, cfg: dict, split: str, pop_window_h: float | None = None,
         pop_max = float(pop_v.max())
         f_poprel.extend((pop_v / (pop_max + 1.0)).tolist())
 
-        # Popularity velocity. 6h beats 24h beats unbounded in isolation (FACTS 16.1), which
+        # Popularity velocity. 6h beats 24h beats unbounded in isolation (FACTS 16A.1), which
         # says recency of attention matters; the ratio expresses "trending now" as opposed to
         # "steadily popular", which no single window can.
         pop24 = _causal_popularity(cands, t, times, 24.0)
@@ -455,7 +455,8 @@ DATASET_FEATURES = {
 # How far back `pop_causal` counts, per dataset. Measured on EB-NeRD small: a 6 hour window
 # beats unbounded by +0.0034 [+0.0026, +0.0043] val and +0.0062 [+0.0058, +0.0067] test at
 # ranker level, paired bootstrap, significant on both. "How popular is this right now" is a
-# better news signal than "how popular has it ever been". See FACTS.md 16.1.
+# better news signal than "how popular has it ever been". The isolated-feature sweep that found
+# the window is FACTS.md 16A.1; the ranker-level confirmation quoted above is FACTS.md 17.3.
 #
 # MIND is left unbounded on purpose. Its popularity is derived from impression timestamps
 # rather than per-click history, its corpus spans a different window, and the sweep was never
