@@ -116,9 +116,20 @@ python -m src.submission.validate ebnerd submissions/ebnerd_predictions.zip
 \section{Leaderboard screenshots}
 \label{app:screenshots}
 
+\mind{}, Codabench competition 13967, submission 932812, user \texttt{namsyn}, rank 54,
+scored 2026-09-19 09:23.
+
 \begin{center}
-\fbox{\parbox[c][4.2cm][c]{0.46\linewidth}{\centering\pend{Screenshot pending}\\[2pt]\mind{},
-Codabench competition 13967}}\hfill
-\fbox{\parbox[c][4.2cm][c]{0.46\linewidth}{\centering\pend{Screenshot pending}\\[2pt]\eb{},
-Codabench competition 2469}}
+\includegraphics[width=\linewidth]{figures/mind-leaderboard-2026-09-19.png}
 \end{center}
+
+\eb{}, Codabench competition 2469: \textbf{no screenshot, and not for want of submitting.} The
+prediction file was built, validated against all five structural checks, scored on a cluster node
+in 3\,h\,06\,m and uploaded. It has not run. Codabench executes that competition on volunteered
+compute workers, none were available, and the queue is first-come-first-served, so making a
+machine available would not guarantee our own submission is the one it picks up. Producing this
+screenshot is not within our control.
+
+Nothing in this report depends on it: every \eb{} number quoted here is measured on our own
+labelled test split, never on the leaderboard. The single thing we cannot state is an \eb{}
+leaderboard rank, and we do not state one.

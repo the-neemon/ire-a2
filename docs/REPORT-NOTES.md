@@ -775,8 +775,33 @@ columns, which the held-out test sets do not ship in a usable form. BM25 was exc
 for cost, measured at roughly 1.6 h for MIND-large's 2M distinct histories. **Reported as two
 different systems rather than letting the better offline number stand in for the uploaded one.**
 
-**Upload and screenshots are still outstanding** and need a Codabench login. MIND allows one
-submission per day, so that clock matters.
+**Uploaded. MIND scored, EB-NeRD did not run.**
+
+MIND, submission 932812, 2026-09-19, rank 54: **AUC 0.6473**, MRR 0.3174, nDCG@5 0.3448,
+nDCG@10 0.4010. Screenshot at `docs/report/screenshots/mind-leaderboard-2026-09-19.png`.
+
+Two readings, and the second is the one that matters.
+
+*The offline projection held.* We predicted 0.6460 for this exact 11-feature configuration on our
+own MIND test split and the leaderboard returned 0.6473, **+0.0013** on 2.37M impressions we have
+no labels for. Given three abandoned submission implementations and a silent NaN train/serve
+mismatch, that agreement is the best evidence available that the streaming path preserves the
+offline scoring semantics.
+
+*The A2 entry is marginally below the A1 entry on every metric*: -0.0030 AUC, -0.0024 MRR,
+-0.0006 nDCG@5, 0.0000 nDCG@10. Not a regression in the re-ranker. MIND ships almost no
+behavioural signal (no `published_time`, no per-click history timestamps, no read time or scroll),
+so the submitted system is 11 features against EB-NeRD's 22, and the click-popularity family that
+carries most of the gain cannot exist on the test period because those clicks are the withheld
+labels. **The behavioural axis is worth +0.2077 AUC on EB-NeRD where the columns exist and
+approximately nothing on the MIND leaderboard where they do not.** Both belong in the report.
+
+EB-NeRD was uploaded and validated but **has not run and probably will not**. Codabench executes
+that competition on volunteered compute workers, none were available, and the queue is
+first-come-first-served, so providing a machine would not guarantee our own submission is picked
+up. No screenshot exists and producing one is outside our control. Nothing here depends on it:
+every EB-NeRD number in this document is from our own labelled test split, never the leaderboard.
+The one thing we cannot state is an EB-NeRD leaderboard rank, and we do not.
 
 ### A sixth structural check, and a sixth near-miss
 

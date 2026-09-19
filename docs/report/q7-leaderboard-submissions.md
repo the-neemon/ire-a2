@@ -143,8 +143,50 @@ Both submissions are built, transferred and validated.
 EB-NeRD was scored on the cluster: 3 h 06 m, 44 GB peak RSS, 16 features over 205,925,868
 candidate pairs. SHA256 verified after transfer.
 
-**Uploading and screenshotting both leaderboards is a manual step** requiring a Codabench account;
-the screenshots are a required deliverable and cannot be produced retroactively.
+### Uploaded: results
+
+**MIND, scored.** Submission `932812`, 2026-09-19 09:23, user `namsyn`, rank 54.
+Screenshot: [screenshots/mind-leaderboard-2026-09-19.png](screenshots/mind-leaderboard-2026-09-19.png).
+
+| | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---|---|---|---|
+| **A2, uploaded, 11 features** | **0.6473** | 0.3174 | 0.3448 | 0.4010 |
+| A1 entry, embeddings + entity blend | 0.6503 | 0.3198 | 0.3454 | 0.4010 |
+| difference | **-0.0030** | -0.0024 | -0.0006 | 0.0000 |
+
+**Two things to say about this, and the second is the uncomfortable one.**
+
+The offline prediction was good. We projected 0.6460 on our own MIND test split for exactly this
+11-feature configuration; the leaderboard returned 0.6473, **+0.0013**. The submission path and
+the offline path agree to three decimals on a 2.37M-impression set we have no labels for, which
+is the strongest available evidence that the streaming re-implementation preserves the scoring
+semantics it claims to.
+
+**The A2 entry is marginally below the A1 entry on every metric.** That is the honest headline
+for MIND and it is not a regression in the re-ranker; it is the withheld-label constraint biting
+hardest exactly where the dataset is weakest. MIND ships almost no behavioural signal to begin
+with (no `published_time`, no per-click history timestamps, no read time or scroll), so the A2
+system there is 11 features against EB-NeRD's 22, and the click-popularity family that carries
+most of the behavioural gain is unavailable on the test period by construction. What remains is
+close to the A1 system plus exposure features, and it lands within 0.003 of it.
+
+So the behavioural axis is worth +0.2077 AUC on EB-NeRD where the columns exist, and
+approximately nothing on the MIND leaderboard where they do not. Both statements are in this
+report and neither is allowed to stand in for the other.
+
+**EB-NeRD, submitted but not scored.** `ebnerd_predictions.zip` was uploaded, and at the time of
+writing it has not run. Codabench executes the RecSys 2024 competition on volunteered compute
+workers, none were available, and the queue is first-come-first-served, so making a machine
+available would not guarantee our own submission is the one it picks up. **There is therefore no
+EB-NeRD leaderboard screenshot, and it is not within our control to produce one.**
+
+This is a limitation of the competition infrastructure rather than of the submission: the file was
+built, validated against all five structural checks, scored on the cluster in 3 h 06 m, and
+transferred with its SHA256 verified. What is missing is a server to run it, not a prediction.
+
+The EB-NeRD numbers this report relies on are all from **our own labelled test split**, never from
+the leaderboard, so nothing downstream depends on that screenshot existing. The one thing we
+cannot do is state an EB-NeRD leaderboard rank, and we do not.
 
 ### Getting the submission path to run at all
 

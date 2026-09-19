@@ -49,14 +49,35 @@ five violations and confirming each one fails.
 \toprule
 leaderboard & AUC & MRR & nDCG@5 & nDCG@10 \\
 \midrule
-\mind{} (Codabench 13967) & \pend{pending} & \pend{pending} & \pend{pending} & \pend{pending} \\
-\eb{} (Codabench 2469) & \pend{pending} & \pend{pending} & \pend{pending} & \pend{pending} \\
+\mind{} (Codabench 13967), submission 932812 & 0.6473 & 0.3174 & 0.3448 & 0.4010 \\
+our A1 entry, for comparison & 0.6503 & 0.3198 & 0.3454 & 0.4010 \\
+\midrule
+\eb{} (Codabench 2469) & \pend{not scored} & \pend{---} & \pend{---} & \pend{---} \\
 \bottomrule
 \end{tabular}
-\caption{Official leaderboard scores. \pend{To fill in after upload; screenshots are in
-Appendix~\ref{app:screenshots}.}}
+\caption{Official leaderboard scores. \mind{} scored on 2026-09-19 at rank 54; screenshot in
+Appendix~\ref{app:screenshots}. \eb{} was uploaded and validated but has not run: Codabench
+executes that competition on volunteered compute workers, none were available, and the queue is
+first-come-first-served, so providing a machine would not guarantee our own submission is the one
+it picks up. No \eb{} screenshot exists and producing one is not within our control.}
 \label{tab:leaderboard}
 \end{table}
+
+\textbf{The \mind{} upload is marginally below our Assignment~1 entry, and that is the honest
+result.} It is not a regression in the re-ranker. \mind{} ships almost no behavioural signal to
+begin with, no publication time, no per-click history timestamps, no read time or scroll, so the
+submitted system there is 11 features against \eb{}'s 22, and the click-popularity family that
+carries most of the behavioural gain cannot be computed on the test period because those clicks
+are the withheld labels. What remains is close to the Assignment~1 system plus exposure features,
+and it lands within 0.003 of it. The behavioural axis is worth $+$0.2077 AUC on \eb{} where the
+columns exist and approximately nothing on the \mind{} leaderboard where they do not; both are
+stated and neither substitutes for the other.
+
+\textbf{The offline prediction held.} We projected 0.6460 for this exact 11-feature configuration
+on our own \mind{} test split, and the leaderboard returned 0.6473, a difference of $+$0.0013 on a
+2.37M-impression set we have no labels for. That agreement is the strongest available evidence
+that the streaming submission path preserves the scoring semantics of the offline path it
+replaced, which three abandoned implementations and a silent NaN mismatch had put in doubt.
 
 \textbf{Reading the official \mind{} MRR.} \mind{}'s scorer averages the reciprocal rank over every
 clicked article, while the common definition credits only the first. The two agree when an

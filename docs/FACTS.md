@@ -171,6 +171,8 @@ usernames or paths.
 | semantic | 0.5089 | 0.3251 | 0.3538 | 0.4391 | EB-NeRD test | A1-yash |
 | Codabench EB-NeRD | 0.5381 | 0.3521 | 0.3868 | 0.4669 | leaderboard | A1-naman |
 | Codabench MIND | 0.6503 | 0.3198 | 0.3454 | 0.4010 | leaderboard | A1-naman |
+| **Codabench MIND, A2 re-ranker, 11 features** | **0.6473** | 0.3174 | 0.3448 | 0.4010 | leaderboard, submission 932812, 2026-09-19, rank 54 | A2 |
+| Codabench EB-NeRD, A2 | **not scored**: uploaded and validated, but the competition runs on volunteered compute workers and none were available; the queue is first-come-first-served | | | | leaderboard | A2 |
 | BM25 title+abstract, stemmed | 0.5840 [0.5814, 0.5865] | 0.3204 | 0.2924 | 0.3494 | MIND small **val** | A2 |
 | BM25 title+abstract, stemmed | 0.5685 [0.5663, 0.5707] | 0.3108 | 0.2868 | 0.3479 | MIND small **test** | A2 |
 | BM25 title only, stemmed | 0.5864 [0.5840, 0.5887] | 0.3182 | 0.2918 | 0.3489 | MIND small **val** | A2 |

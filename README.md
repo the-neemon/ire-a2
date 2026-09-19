@@ -99,7 +99,7 @@ val and scored once. Every one has a row in [docs/FACTS.md](docs/FACTS.md).
 | Q4 serving and scale analysis | **done**, re-measured on the shipped model | [docs/report/q4-serving-and-scale.md](docs/report/q4-serving-and-scale.md) |
 | Q5 extended evaluation with slices and CIs | **done**, both datasets, both splits | [docs/report/q5-metrics-and-methodology.md](docs/report/q5-metrics-and-methodology.md) |
 | Q6 design note | **done** | [docs/design-note/design-note.pdf](docs/design-note/design-note.pdf) |
-| Q7 deliverables | code, harness and README done; **leaderboard screenshots pending upload** | [docs/report/q7-leaderboard-submissions.md](docs/report/q7-leaderboard-submissions.md) |
+| Q7 deliverables | **done**; MIND scored and screenshotted, EB-NeRD uploaded but unscorable (no Codabench worker available) | [docs/report/q7-leaderboard-submissions.md](docs/report/q7-leaderboard-submissions.md) |
 | Q8 commit policy | **honoured**, incremental commits carrying their measured result | `git log` |
 | Q9 anti-gaming and leakage | **done**, tests fire on injection | [docs/report/q9-anti-gaming.md](docs/report/q9-anti-gaming.md) |
 
@@ -109,9 +109,12 @@ timestamps and no engagement data.
 
 Known gaps, stated rather than left to be discovered:
 
-- **Leaderboard scores and screenshots are not in the design note yet.** Both prediction files are
-  built and pass the offline validator; the uploads are the remaining step. The note marks the
-  missing cells in red rather than leaving them blank.
+- **There is no EB-NeRD leaderboard screenshot, and we cannot produce one.** The file was
+  uploaded, but Codabench runs the RecSys 2024 competition on volunteered compute workers, none
+  were available, and the queue is first-come-first-served, so offering a machine would not
+  guarantee our own submission runs. MIND scored: **0.6473 AUC**, rank 54, screenshot in
+  [docs/report/screenshots/](docs/report/screenshots/). Every EB-NeRD number in this report comes
+  from our own labelled test split rather than the leaderboard, so nothing depends on it.
 - **The baseline covers one dataset.** NRMS was reproduced and beaten on EB-NeRD only.
 - **Approximate search is motivated but unmeasured.** Q4 shows the exact index is what breaks at
   10x; we did not measure the recall an IVF or HNSW index would cost.
