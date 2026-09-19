@@ -34,7 +34,7 @@ a flag and measure it against the system without it.
 | 6 | Per-language stemming: Snowball Danish on, English off | MIND | see 6a | | vocab 44,264 -> 60,914; build 5.2 -> 4.1 s | **rejected** |
 | 6 | Per-language stemming: Snowball Danish on, English off | EB-NeRD demo | see 6b | | vocab 22,105 -> 31,515; build 0.9 -> 0.6 s | **inconclusive** (underpowered) |
 | 6 | Per-language stemming, re-measured at 10x | EB-NeRD small | see 6c | | vocab 30,388 -> 43,451; scoring 19.2 -> 23.6 s | **rejected**, keep stemming on |
-| 7 | BM25 documents title-only rather than title + abstract | MIND | see 7a | | vocab 44,264 -> 24,681; build 4.5 -> 1.9 s | **shipped-pending** |
+| 7 | BM25 documents title-only rather than title + abstract | MIND | see 7a | | vocab 44,264 -> 24,681; build 4.5 -> 1.9 s | **not shipped** |
 | 7 | BM25 documents title-only rather than title + abstract | EB-NeRD demo | see 7b | | vocab 22,105 -> 10,738; build 0.7 -> 0.5 s | **rejected** (underpowered) |
 | 7 | Field choice, re-measured at 10x | EB-NeRD small | see 7c | | vocab 30,388 -> 15,132; build 1.0 -> 0.6 s | **verdict reversed**: trade-off, AUC-favourable |
 | 9 | Re-sweep `history_len` after 2 and 7 land | both | | | | planned |
@@ -125,7 +125,7 @@ had no stopword list, making it the *combined* effect of both. Not yet tested di
 `stem x stopwords` as a 2x2 is the obvious follow-up and is cheap here (four ~1 s index builds),
 but it is a second changed variable and therefore a separate ablation, not this row.
 
-#### 7a. MIND documents title-only: **shipped-pending**, one decision short
+#### 7a. MIND documents title-only: **measured, not shipped**
 
 Delta of dropping `abstract` from the indexed document, baseline is title + abstract.
 
@@ -147,9 +147,9 @@ an incomplete result.
 
 Cheaper on every axis: vocabulary 44,264 -> 24,681, index build 4.5 s -> 1.9 s.
 
-Left as `shipped-pending` rather than shipped. The measurement supports the change; changing what
-ships is a decision for the team, not one to apply unilaterally from an ablation result, so
-`configs/datasets.yaml` still carries `title_abstract` for both datasets.
+Not shipped. The AUC gain is real, but the change was held back for the reason in 7c: it costs
+the stage-one recall that the re-ranker consumes. The submitted system indexes `title_abstract`
+for both datasets.
 
 #### 7b. EB-NeRD demo documents title-only: **rejected**
 
@@ -215,7 +215,7 @@ MRR, EB-NeRD pays in retrieval recall. Both were invisible without a paired CI p
 
 Cost, cheaper on both axes: vocabulary 30,388 -> 15,132, index build 1.0 s -> 0.6 s.
 
-Still **`shipped-pending`**, and the config still ships `title_abstract`. The measurement now
+**Not shipped**: the submitted system indexes `title_abstract`. The measurement now
 supports the change on ranking metrics for both datasets, but it costs stage-one recall on
 EB-NeRD val, and Q2's re-ranker consumes exactly that recall. That makes it a pipeline-level
 decision rather than a retrieval-level one, and it is the team's to take.

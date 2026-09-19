@@ -56,8 +56,8 @@ reading is underpowered on val, not absent.
 
 `minus_user_read` is the one real conflict: significantly **negative** on val (removing it helps
 by 0.0006) and not significant on test. It is a candidate for removal, but on this evidence the
-case rests on a val-only effect smaller than the val/test gap, so it stays pending a decision
-rather than being dropped mid-report.
+case rests on a val-only effect smaller than the val/test gap, so it is kept in the submitted
+model rather than dropped on that evidence.
 
 ## What the leak fix changed
 

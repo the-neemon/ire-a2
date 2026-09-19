@@ -103,9 +103,10 @@ val and scored once. Every one has a row in [docs/FACTS.md](docs/FACTS.md).
 | Q8 commit policy | **honoured**, incremental commits carrying their measured result | `git log` |
 | Q9 anti-gaming and leakage | **done**, tests fire on injection | [docs/report/q9-anti-gaming.md](docs/report/q9-anti-gaming.md) |
 
-`make test` is 29 passed, 6 skipped, 0 failed. The skips are datasets not built on the machine that
-ran it (`ebnerd_demo`) and assertions that do not apply to MIND, which ships no per-item history
-timestamps and no engagement data.
+`make test` is 32 passed, 3 skipped, 0 failed with EB-NeRD demo and small and MIND small all built.
+The skip count depends on which datasets are present, since each missing dataset skips its own
+assertions; the three that remain are assertions that do not apply to MIND, which ships no
+per-item history timestamps and no engagement data.
 
 Known gaps, stated rather than left to be discovered:
 

@@ -286,8 +286,8 @@ agreeing to that precision on a two-sided trade-off is the strongest cross-valid
 **MIND and EB-NeRD pay for it in different metrics**, and neither was visible without a paired
 CI per metric: MIND pays in MRR (-0.0022, significant), EB-NeRD pays in stage-one recall. So the
 MIND MRR loss is a property of MIND, not of dropping the abstract. Cost is lower either way:
-vocabulary 30,388 -> 15,132, build 1.0 s -> 0.6 s. Still `shipped-pending`, because it costs
-exactly the stage-one recall that Q2's re-ranker consumes, making it a pipeline-level decision.
+vocabulary 30,388 -> 15,132, build 1.0 s -> 0.6 s. Not shipped, because it costs
+exactly the stage-one recall that Q2's re-ranker consumes.
 
 **Stemming**: keep it **on for both** datasets. The plan's premise ("Danish on, English off") is
 rejected: turning it off costs MIND -0.0023 [-0.0034, -0.0013] val AUC.

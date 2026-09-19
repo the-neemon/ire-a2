@@ -75,7 +75,7 @@ happen to contain.
 ## What the architecture assumes, and where that is fragile
 
 - **Recall is a ceiling.** Stage two can only reorder what stage one returned, so any relevant
-  article outside the 200 is unrecoverable. This is why ablation #7 is shipped-pending: it gains
+  article outside the 200 is unrecoverable. This is why ablation #7 was not shipped: it gains
   ranking AUC while costing recall@200, and the recall is what stage two consumes.
 - **Stage one dominates at scale.** The Q4 bench found the ANN is what breaks first at a 10x
   corpus, growing 19.4x where exact search should be at worst linear, because 60.8 MiB of vectors
