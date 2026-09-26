@@ -43,12 +43,12 @@ begins. Our feature builder merged both and let the later block overwrite the ea
 users. Our val split is carved out of the earlier block, so val impressions were described by
 history drawn from their own future.
 
-\textbf{We found it by chasing a metric discrepancy, not with a test.} Two implementations of the
+We found it by chasing a metric discrepancy rather than with a test. Two implementations of the
 same user vector scored 0.6473 and 0.5506. Making one reproduce both numbers with only the history
 source changed confirmed the cause and priced it: a $+$0.0967 inflation on that feature. The fix
 reads one block per split, and a new test that fails on injection covers it.
 
-\textbf{Two consequences show the leak was real and the fix was right.} The read-time-weighted user
+Two consequences show the leak was real and the fix was right. The read-time-weighted user
 vector's apparent $+$0.0085 contribution fell to $+$0.0002, not significant, so its entire value
 had been the leak. And test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
 always clean and only the model, now trained without future information, changed.
@@ -90,13 +90,13 @@ reason every leakage assertion here is now verified by injection before it is tr
   after it had died.
 \item The leakage tests covered \feat{pop_causal} only, so the engagement arrays the model also
   reads were never checked. That is what let the block-merge leak survive (Appendix~\ref{app:leak}).
-\item \textbf{An injection test deleted by its own name.} Two test functions in one file shared a
+\item An injection test deleted by its own name. Two test functions in one file shared a
   name, so the second definition replaced the first and the popularity injection check ran
   \textbf{zero times} from the day it was written. Reading the file cannot catch this. Counting
   collected tests can: \textbf{12 collected against 15 written} is what exposed it.
 \end{enumerate}
 
-\textbf{A guard that fires on prose teaches you to delete the prose.} The same anti-gaming test
+A guard that fires on prose teaches you to delete the prose. The same anti-gaming test
 searched source as raw text and failed on \feat{src/rerank/q9.py}, whose only mention of the
 lifetime columns is a comment recording that \mind{} has none of them. Allow-listing the file would
 have passed the suite while removing the guard from a module that never read those columns. It now
@@ -114,15 +114,15 @@ impressions carry several clicks, 28.8\% on \mind{} against 0.5\% on \eb{}. \tex
 fails on exactly one dataset, check the definition first.}
 
 \begin{itemize}
-\item \textbf{Hit rate labelled recall.} Our retrieval stage printed the share of impressions with
+\item Hit rate labelled recall. Our retrieval stage printed the share of impressions with
   at least one clicked article retrieved, under the name for the share of clicked articles
   retrieved. On \mind{} test they read 0.0333 and 0.0226, and reconcile exactly:
   $0.0333 \times 0.6775 = 0.0226$.
-\item \textbf{Two MRRs.} \mind{}'s official scorer averages reciprocal rank over \emph{every}
+\item Two MRRs. \mind{}'s official scorer averages reciprocal rank over \emph{every}
   clicked article; the common definition credits only the first. For one unchanged ranking they
   give 0.2693 and 0.3108, with AUC and nDCG identical. Our harness reports both and the ``all
   clicks'' column is the one comparable to the leaderboard.
-\item \textbf{Two user vectors.} Two implementations of the same feature read different history
+\item Two user vectors. Two implementations of the same feature read different history
   files and scored 0.6473 and 0.5506. That discrepancy is what uncovered the leak in
   Appendix~\ref{app:leak}.
 \end{itemize}
@@ -159,7 +159,7 @@ different categories; novelty is mean self-information in bits, so higher is les
 coverage is the share of the catalogue that ever reaches a top 10.}
 \end{table*}
 
-\textbf{Coverage carries no interval, and our own failed attempt at one is the reason.} It counts
+Coverage carries no interval, and our own failed attempt at one is the reason. It counts
 \emph{distinct} articles rather than averaging over impressions, so it is not a mean and the
 bootstrap does not apply. A resample draws only about 63\% of the impressions, and every article
 that only the missing impressions would have surfaced simply vanishes, so every resample

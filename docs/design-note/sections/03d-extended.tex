@@ -2,8 +2,7 @@
 \label{sec:extended}
 
 An average can hide a system that fails a subgroup, so we split test impressions by user history
-length and by how often the clicked article was clicked in training. \textbf{Slice sizes are
-printed because the thresholds are not obvious}: over 90\% of articles in both datasets have zero
+length and by how often the clicked article was clicked in training. We print slice sizes because the thresholds are not obvious: over 90\% of articles in both datasets have zero
 training clicks, so a percentile over the whole catalogue would be zero and would call everything
 head. Taken over articles seen in training it gives a head threshold of 349 clicks on \eb{}, 803
 impressions, 0.3\% of the split.
@@ -16,17 +15,17 @@ minus fused retrieval. $^\ast$Lifetime popularity, not servable, shown for compa
 \label{tab:slices}
 \end{table*}
 
-\textbf{The gain is uniform across the slices that matter}, with cold, warm and tail all improving
-by about 0.25 AUC. \textbf{Cold and warm users are now indistinguishable} (0.7910 and 0.7908),
-which is a property rather than an achievement: the model's strongest features are popularity and
+The gain is uniform across the slices that matter, with cold, warm and tail all improving by about
+0.25 AUC. Cold and warm users are now indistinguishable (0.7910 and 0.7908), which is a property
+rather than an achievement: the model's strongest features are popularity and
 exposure, which need no history, so having little history costs almost nothing.
 
-\textbf{Head articles are the exception, and the result reverses across the split boundary.} On
+Head articles are the exception, and the result reverses across the split boundary. On
 validation the re-ranker beats fused retrieval on head (0.7080 [0.6905, 0.7253] against 0.6638
 [0.6467, 0.6800]); on test it loses (0.5530 [0.5316, 0.5728] against 0.6353 [0.6143, 0.6574]). Both
 intervals are disjoint, but an effect that flips sign across a temporal boundary is a property of
-the window, not a stable claim. \textbf{So we cannot claim the re-ranker helps on the most popular
-articles, and on test it is clearly worse there than retrieval alone.} One untested explanation
+the window, not a stable claim. We therefore cannot claim the re-ranker helps on the most popular articles, and on test it is
+clearly worse there than retrieval alone. One untested explanation
 fits: our popularity counts only the last six hours and is rank-normalised inside the impression, a
 deliberate ``trending now'' signal that discounts steadily popular articles. Consistent with that,
 the leaky lifetime-popularity arm is the best system on head (0.6921), the only slice it wins, and
@@ -34,12 +33,12 @@ the leaky lifetime-popularity arm is the best system on head (0.6921), the only 
 impressions, its largest slice gain. \mind{}'s users also gain most where they have least, 0.6288
 against 0.5125 on 2,214 impressions with no history at all.
 
-\textbf{The accuracy gain is not paid for in diversity or novelty} (Appendix~\ref{app:beyond}).
+The accuracy gain is not paid for in diversity or novelty (Appendix~\ref{app:beyond}).
 The re-ranker has the highest novelty of any system on both datasets and diversity close to
 BM25's, so it is not collapsing onto a few popular stories. It does cost a little catalogue
 coverage: 0.2051 against 0.2026 on \eb{} test and 0.0529 against 0.0494 on \mind{}, roughly 3 to
 7\% fewer distinct articles ever surfacing. That is the real trade and it is small.
 
-\textbf{Coverage is quoted without an interval, on purpose}, because a bootstrap systematically
+Coverage is quoted without an interval, on purpose, because a bootstrap systematically
 undercounts a distinct-item statistic. Our own failed attempt is the demonstration and is in
 Appendix~\ref{app:beyond}.

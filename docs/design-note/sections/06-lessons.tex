@@ -1,54 +1,58 @@
 \section{Observations that generalise}
 \label{sec:lessons}
 
-\textbf{A feature's isolated score is not its contribution.} Impression size, \feat{n_cands}, is
-identical for every candidate in an impression, so alone it scores exactly 0.5000, yet removing it
-costs $-$0.0066 test AUC, the second largest loss in the grid: it helps only through interactions,
-by telling the model how crowded the impression is. The reverse also happens, with freshness
-carrying high LightGBM split gain but removing it changing almost nothing, because popularity
-already holds the same information. We therefore quote ablation deltas, never importance.
+Five things surprised us enough to change how we work.
 
-\textbf{Leave-one-out deltas do not add up.} In the 17-feature grid, removing \feat{pop_causal}
-alone or \feat{user_read} alone makes the model slightly better on val. Removing both is
-significantly \emph{worse} on both splits ($-$0.0005 val, $-$0.0007 test), and keeping only the
-features with significant positive deltas loses 0.0240 test AUC. Correlated features cover for
-each other, so a single-feature ablation answers ``what does this add given the rest'' and not
-``what should we keep''. We ship all features.
+The first is that a feature's isolated score says little about its contribution. Impression size,
+\feat{n_cands}, is identical for every candidate in an impression, so alone it scores exactly
+0.5000, yet removing it costs $-$0.0066 test AUC, the second largest loss in the grid. It helps
+only through interactions, by telling the model how crowded the impression is. The reverse also
+happens: freshness carries high LightGBM split gain, but removing it changes almost nothing,
+because popularity already holds the same information. We therefore quote ablation deltas, never
+importance.
 
-\textbf{An underpowered result is not a null result.} Our stage-one ablations first ran on the
-10$\times$ smaller \eb{} demo set, where two intervals spanned zero. At full scale they resolved in
-opposite directions: dropping the abstract from BM25 went from $+$0.0009 [$-$0.0062, $+$0.0081] to a
-real $+$0.0025 [$+$0.0002, $+$0.0047], while Danish stemming stayed flat within $\pm$0.0004, at
-intervals tight enough to exclude the $+$22 to $+$36\% recall gain Assignment~1 had claimed. We now
-re-run any interval spanning zero at larger scale before recording a verdict.
+Leave-one-out deltas also fail to add up, which cost us more time than the rest combined. In the
+17-feature grid, removing \feat{pop_causal} alone or \feat{user_read} alone makes the model
+slightly better on val. Removing both is significantly \emph{worse} on both splits ($-$0.0005 val,
+$-$0.0007 test), and keeping only the features with significant positive deltas loses 0.0240 test
+AUC. Correlated features cover for each other, so a single-feature ablation answers ``what does
+this add given the rest'' and not ``what should we keep''. We ship all features.
 
-\textbf{A check must test the artifact, not a proxy for it.} We found \textbf{six} checks on this
-project that passed while testing nothing, the last of them an injection test that two functions
-sharing a name had silently deleted, so it ran zero times from the day it was written. Reading the
-file cannot catch that; counting collected tests can, and \textbf{12 collected against 15 written}
-is what exposed it. Every test must now fail on an injected violation before it counts, and how
-many actually run is part of what we check. All six, and the related case of a guard that fired on
-a comment rather than on code, are in Appendix~\ref{app:vacuous}.
+Our stage-one ablations first ran on the 10$\times$ smaller \eb{} demo set, where two intervals
+spanned zero and we were ready to call both null. At full scale they resolved in opposite
+directions: dropping the abstract from BM25 went from $+$0.0009 [$-$0.0062, $+$0.0081] to a real
+$+$0.0025 [$+$0.0002, $+$0.0047], while Danish stemming stayed flat within $\pm$0.0004, at
+intervals tight enough to exclude the $+$22 to $+$36\% recall gain Assignment~1 had claimed. An
+underpowered result is not a null result, and we now re-run any interval spanning zero at larger
+scale before recording a verdict.
 
-\textbf{When a number fails on exactly one dataset, check the definition before the code.} Three
-of our metrics turned out to carry two definitions each, and every one reproduced on one dataset
-and not the other, because the definitions diverge only when impressions carry several clicks
-(28.8\% on \mind{} against 0.5\% on \eb{}). The three are in Appendix~\ref{app:names}; one of them
-is how we found the leak.
+The most uncomfortable finding concerns our tests. Six checks on this project passed while testing
+nothing at all, the last of them an injection test that two functions sharing a name had silently
+deleted, so it ran zero times from the day it was written. Reading the file cannot catch that;
+counting collected tests can, and 12 collected against 15 written is what exposed it. Every test
+must now fail on an injected violation before it counts, and how many actually run is part of what
+we check. All six, and the related case of a guard that fired on a comment rather than on code, are
+in Appendix~\ref{app:vacuous}.
+
+Finally, when a number fails on exactly one dataset, the definition is a better suspect than the
+code. Three of our metrics turned out to carry two definitions each, and every one reproduced on
+one dataset and not the other, because the definitions diverge only when impressions carry several
+clicks (28.8\% on \mind{} against 0.5\% on \eb{}). The three are in Appendix~\ref{app:names}; one
+of them is how we found the leak.
 
 \section{Limitations and open questions}
 \label{sec:limits}
 
 \begin{itemize}
-\item \textbf{Parts of Q1 are not modelled.} No within-session features (\eb{}'s session id is
+\item Parts of Q1 are not modelled: no within-session features (\eb{}'s session id is
   unused) and no position-bias correction. Time decay on the history was neutral to harmful at
   every setting in Assignment~1 and was not revisited inside the ranker.
-\item \textbf{The baseline covers one dataset.} NRMS was reproduced and beaten on \eb{} only. The
+\item The baseline covers one dataset. NRMS was reproduced and beaten on \eb{} only. The
   history length of 100 our sweep favours was not tried in NRMS, whose cost grows quadratically
   with it.
-\item \textbf{The final model may be under-trained.} Its best iteration is 399 of a 400-round cap,
+\item The final model may be under-trained. Its best iteration is 399 of a 400-round cap,
   so it was still improving when training stopped; the reported gain is more likely understated
   than inflated.
-\item \textbf{Our strongest claims are about \eb{}.} \mind{}'s gain is a small fraction of it, a
+\item Our strongest claims are about \eb{}. \mind{}'s gain is a small fraction of it, a
   property of the data rather than the method, but one dataset carries most of the evidence.
 \end{itemize}

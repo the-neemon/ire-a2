@@ -11,27 +11,24 @@ what it would buy (Section~\ref{sec:q9}). Validation-split figures are in Append
 \label{tab:overall}
 \end{table*}
 
-\textbf{Two baselines appear in this report and they are not the same thing.} Here ``stage one''
-is the fused retrieval score ranking the candidates directly (\EBFusedTest{} on test). The
+Two baselines appear in this report and they are not the same thing. Here ``stage one'' is the fused retrieval score ranking the candidates directly (\EBFusedTest{} on test). The
 ablation grid in Table~\ref{tab:choices} instead compares against \feat{stage1_only}, a ranker
 trained on the two retrieval scores alone, which is slightly stronger at 0.5430. That is why the
 same result reads \EBGainTest{} here and $+$0.2223 there.
 
-\textbf{On \eb{} the re-ranker is worth \EBGainTest{} AUC} over fused retrieval,
-\EBGainTestCI{} on test, and \EBGainVal{} \EBGainValCI{} on val. The val and test intervals
+On \eb{} the re-ranker is worth \EBGainTest{} AUC over fused retrieval, \EBGainTestCI{} on test, and \EBGainVal{} \EBGainValCI{} on val. The val and test intervals
 overlap, so the gain generalises across the time boundary rather than being an artefact of what we
 selected on. Every other accuracy metric moves the same way, so this is a genuine reordering rather
 than a trade between metrics.
 
-\textbf{On \mind{} the same architecture is worth \MDGainTest{} \MDGainTestCI{}}, far less. Two
-things compound: five of the 22 features have no source there (Section~\ref{sec:system}), so the
+The same architecture is worth far less on \mind{}, \MDGainTest{} \MDGainTestCI{}. Two things
+compound: five of the 22 features have no source there (Section~\ref{sec:system}), so the
 behavioural axis is thinner, and \mind{}'s stage one is already stronger in absolute terms
 (\MDFusedTest{} against \eb{}'s \EBFusedTest{}), leaving less headroom. A smaller gain on a dataset
 with less signal is a measured property of the data, so we report the contrast rather than
 presenting one system that is quietly two.
 
-\textbf{One family of features did transfer, and it was the one built under duress.} An earlier
-round of seven features moved \mind{} by nothing significant at all. The five exposure features,
+One family of features did transfer, and it was the one built under duress. An earlier round of seven features moved \mind{} by nothing significant at all. The five exposure features,
 added because Codabench withholds the click labels, are worth \LadderExpMindTest{}
 \LadderExpMindTestCI{} on \mind{} test and \LadderExpMindVal{} \LadderExpMindValCI{} on val. How
 often an article was \emph{shown} is apparently a signal both corpora carry, where freshness and

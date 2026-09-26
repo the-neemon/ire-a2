@@ -26,13 +26,13 @@ impression precedes every val impression, which precedes every test impression.}
 \label{tab:data}
 \end{table*}
 
-\textbf{Splits are by time, never random}, since a random split lets the model learn from Thursday
-to predict Wednesday. \eb{} val begins 23 May 07:00 and test 25 May 07:00; \mind{} uses the last
-day of its training log as val and its dev log as test.
+Splits are by time, never random, since a random split lets the model learn from Thursday to
+predict Wednesday. \eb{} val begins 23 May 07:00 and test 25 May 07:00; \mind{} uses the last day
+of its training log as val and its dev log as test.
 
-\textbf{Metric: per-impression AUC}, averaged over impressions containing both a click and a
-non-click, never pooled across impressions. \textbf{Significance: paired bootstrap 95\% intervals},
-1,000 resamples on shared impressions; a gain counts only if its interval excludes zero. Selection
+We report per-impression AUC, averaged over impressions containing both a click and a non-click,
+never pooled across impressions. Significance is a paired bootstrap 95\% interval over 1,000
+resamples on shared impressions, and a gain counts only if its interval excludes zero. Selection
 happens on val and test is scored once. Both choices, and what pooling would have cost, are defined
 in Appendix~\ref{app:background}.
 
@@ -68,7 +68,7 @@ article. Stage two touches only the candidates, so it can afford per-candidate f
 \label{fig:pipeline}
 \end{figure*}
 
-\textbf{Stage one, candidate generation} (carried from Assignment 1). \emph{BM25}
+Stage one, candidate generation, is carried from Assignment 1. \emph{BM25}
 \cite{robertson2009,lu2024bm25s} over a query built from the titles of the user's last $N$ clicks
 ($N=30$ on \eb{}, $100$ on \mind{}), stemming on for both languages, Danish stopword list. The
 \emph{semantic} retriever takes the mean of the user's clicked-article vectors and finds nearest
@@ -78,7 +78,7 @@ the provided 768-dimensional \texttt{contrastive\_vector} for \eb{} and 384-dime
 Assignment 1. The two scores are standardised within each pool and mixed linearly, weight chosen on
 val. Each retriever keeps its top 200. Both indexes are held in RAM.
 
-\textbf{Stage two, the re-ranker.} LightGBM \cite{ke2017lightgbm} with the \term{LambdaRank}
+Stage two is the re-ranker: LightGBM \cite{ke2017lightgbm} with the \term{LambdaRank}
 objective \cite{burges2010}, measured against a binary objective rather than assumed
 (Table~\ref{tab:choices}). Settings: learning rate 0.05, 31 leaves, at least 50 rows per leaf,
 90\% feature and row subsampling, up to 400 rounds with early stopping on val nDCG, seed 13.
@@ -86,7 +86,7 @@ Appendix~\ref{app:background} defines both retrieval scores and the objective.
 
 \subsection{Features and the behaviour-window boundary}
 
-\textbf{Every feature for an impression at time $t$ uses only data from strictly before $t$}, the
+Every feature for an impression at time $t$ uses only data from strictly before $t$. This is the
 \term{behaviour-window boundary}. Click and exposure counts come from binary search over each
 article's sorted event times with a strict ``$< t$'' cut, so an event at exactly $t$ is excluded.
 Tests assert this on every split and each was checked by injection (Section~\ref{sec:q9}).
@@ -123,13 +123,13 @@ one.}
 \label{tab:features}
 \end{table*}
 
-\textbf{Five features cannot exist on \mind{}, and we drop them explicitly.} Its publication time
-is null for all 65,238 articles and it ships no read-time or scroll data. Since a column of zeros
+Five features cannot exist on \mind{}, so we drop them explicitly. Its publication time is null
+for all 65,238 articles and it ships no read-time or scroll data. Since a column of zeros
 looks like a real feature to LightGBM, the builder refuses to emit anything all-null or constant.
 This matches our pre-design data audit: \eb{} is rich in behavioural signal, \mind{} has little
 beyond the click itself.
 
-\textbf{Exposure} (``how often was this article shown before $t$'') was added because the
-leaderboard files withhold clicks (Section~\ref{sec:leaderboard}) but keep the in-view lists, and
+Exposure, meaning how often an article was shown before $t$, was added because the leaderboard
+files withhold clicks (Section~\ref{sec:leaderboard}) but keep the in-view lists, and
 kept for a better reason: a live recommender knows its own exposure log immediately, while click
 feedback arrives later.

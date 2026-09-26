@@ -1,7 +1,7 @@
 \subsection{Anti-gaming: serving-unavailable features and the leak we found}
 \label{sec:q9}
 
-\textbf{What the system declines to use.} \eb{} ships three lifetime totals per article (views,
+\eb{} ships three lifetime totals per article (views,
 page views, read time) summed over the whole collection period, so for any impression they include
 the future and cannot exist when serving. We trained the same ranker on the same rows with and
 without them:
@@ -32,23 +32,21 @@ round rather than the shipped 22. End to end the servable re-ranker (\EBFinalTes
 stage one with lifetime popularity added (\EBLeakyTest{}). \mind{} cannot run this comparison at
 all: its lifetime columns are null for all 65,238 articles.
 
-\textbf{Enforcement.} Two tests guard the boundary: one asserts that no click, exposure or
+Two tests guard the boundary: one asserts that no click, exposure or
 engagement value used for an impression comes from at or after its timestamp, on every split; the
 other fails if any scoring module reads a lifetime column. Each was verified by injecting a
 violation and watching it fail, after we found checks that passed without checking anything
 (Section~\ref{sec:lessons}).
 
-The first recounts popularity against the \textbf{6\,h window the shipped feature actually uses},
-with a \emph{two-sided} mask and a different code path from the builder's binary search. Two-sided
+The first recounts popularity against the 6\,h window the shipped feature actually uses, with a \emph{two-sided} mask and a different code path from the builder's binary search. Two-sided
 is load-bearing: asserting only ``no more than the clicks before $t$'' is satisfied by a window
 reaching past $t$ so long as it stays narrow, so the weaker check passes on the leak it exists to
 catch. We confirmed the stronger one is live by mutation rather than argument, since changing the
-window to 12\,h or unbounded without rebuilding makes both boundary tests fail. The suite is
-\textbf{29 passed, 6 skipped, 0 failed}.
+window to 12\,h or unbounded without rebuilding makes both boundary tests fail. The suite is 29 passed, 6 skipped, 0 failed.
 
-\textbf{We also found a real leak in our own code, and fixing it raised accuracy.} Merging \eb{}'s
-two history blocks described \textbf{99.8\% of validation and 99.9\% of training impressions with
-history from their own future}; test was clean at 0.0\%. It was worth $+$0.0967 on the affected
+We also found a real leak in our own code, and fixing it raised accuracy. Merging \eb{}'s two
+history blocks described 99.8\% of validation and 99.9\% of training impressions with history from
+their own future; test was clean at 0.0\%. It was worth $+$0.0967 on the affected
 feature, and after the fix test AUC \emph{rose} from 0.7429 to 0.7461, because test features were
 always clean and only the model changed. How we found it, and the evidence that the fix was right,
 are in Appendix~\ref{app:leak}.

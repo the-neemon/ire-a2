@@ -3,7 +3,7 @@
 
 Every number here came from one machine, a laptop with 8 physical (12 logical) cores, 15.3 GB RAM
 and no GPU, timing the shipped 22-feature model with its 399 trees; none are mixed across machines.
-Requests are timed \textbf{one at a time}, never batched, because batching raises throughput while
+Requests are timed one at a time, never batched, because batching raises throughput while
 making each request slower and it is the tail a user notices.
 
 \subsection{Index memory, in RAM and on disk}
@@ -34,18 +34,16 @@ The median request takes \BenchPfifty{} ms and p99 \BenchPninetynine{} ms. Exact
 is \BenchAnnShare\% of the median and the re-ranker \BenchRerankShare\%, so those two are what to
 attack.
 
-\textbf{The accuracy gain was not free.} The same bench on the earlier 10-feature model with 311
-trees gave a median of 22.06 ms and p99 64.90 ms, so going to 22 features roughly doubled the
+The accuracy gain was not free. The same bench on the earlier 10-feature model with 311 trees gave a median of 22.06 ms and p99 64.90 ms, so going to 22 features roughly doubled the
 median. That is the cost of the \EBGainTest{} AUC, and it only appears when serving is measured
 rather than assumed.
 
 \subsection{Cost per 1000 queries at a target SLA}
 
-Against a target of p99 under 100 ms, the measured \BenchPninetynine{} ms \textbf{meets the SLA
-with \BenchHeadroom$\times$ headroom}, down from the 1.5$\times$ the smaller model had. One core
+Against a target of p99 under 100 ms, the measured \BenchPninetynine{} ms meets the SLA with
+\BenchHeadroom$\times$ headroom, down from the 1.5$\times$ the smaller model had. One core
 sustains \BenchSerialQPS{} QPS, measured. Scaling to \BenchCores{} physical cores gives
-\BenchCapacityQPS{} QPS and, at an assumed \$0.040 per vCPU-hour, \textbf{\$\BenchCost{} per 1000
-queries}. Both of those are \emph{projections}: only the latency they multiply is measured. We
+\BenchCapacityQPS{} QPS and, at an assumed \$0.040 per vCPU-hour, \$\BenchCost{} per 1000 queries. Both of those are \emph{projections}: only the latency they multiply is measured. We
 count physical cores because this path is dense floating-point work, where a second thread on the
 same core shares an execution unit.
 
@@ -62,14 +60,14 @@ behind it are in Appendix~\ref{app:scaling}.}
 \label{fig:scaling}
 \end{figure*}
 
-\textbf{Exact embedding search breaks first.} Over a \BenchCorpusGrowth$\times$ corpus it grows
+Exact embedding search breaks first. Over a \BenchCorpusGrowth$\times$ corpus it grows
 \BenchAnnGrowth$\times$, where a flat scan should be at worst linear. The cause is the memory
 hierarchy, not arithmetic: at the smallest corpus the vectors occupy \BenchFaissSmall{} MiB and
 sit in cache, and at full size they occupy \BenchFaissFull{} MiB and every query streams them from
-RAM. \textbf{At 10$\times$ the catalogue this is a memory-bandwidth problem, not a FLOPs problem},
+RAM. At 10$\times$ the catalogue this is a memory-bandwidth problem rather than an arithmetic one,
 so buying cores would not fix it.
 
-\textbf{The re-ranker also slows down, and it is not doing more work.} Its cost grew
+The re-ranker also slows down without doing more work. Its cost grew
 \BenchRerankGrowth$\times$, surprising because it scores only the candidate pool, whose size the
 retrievers set rather than the corpus. We measured the pool rather than assuming: across the same
 \BenchCorpusGrowth$\times$ corpus the mean pool goes \PoolSmall{} to \PoolFull{} candidates, a
@@ -78,14 +76,14 @@ Every stage slows at the largest corpus, including feature assembly, which touch
 The consistent reading is that the dense scan's memory traffic evicts everything else from cache,
 so the index taxes the whole request rather than only its own stage.
 
-\textbf{Two growth figures are upper bounds.} Subsampling also shortens the query, which is built
+Two of the growth figures are upper bounds. Subsampling also shortens the query, which is built
 from history-article titles: mean query length falls \TokFull{} to \TokSmall{} tokens and
 resolvable history items \HistFull{} to \HistSmall{}. So the \BenchTokGrowth$\times$ for tokenising
 and \BenchBmGrowth$\times$ for BM25 mix corpus size with query length and overstate the corpus
 effect. Exact search is unaffected, since a flat scan costs vectors times dimensions whatever the
 query holds, which is why the verdict rests on it.
 
-\textbf{This overturns our Assignment-1 conclusion} that the per-impression Python loop would break
+This overturns our Assignment-1 conclusion that the per-impression Python loop would break
 before the linear algebra. The lever now is an approximate index, which Assignment 1 measured as 10
 to 20$\times$ faster and set aside as unnecessary, flagging a revisit at 10$\times$. This is that
 revisit and the answer is the opposite. It would speed up more than its own stage, since it is also

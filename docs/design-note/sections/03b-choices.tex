@@ -29,11 +29,11 @@ recall@200 by $-$0.0024 [$-$0.0035, $-$0.0013], and recall is what stage two con
 \label{tab:choices}
 \end{table*}
 
-Three deserve a sentence. \textbf{The objective matters}: a binary objective leans on absolute
+Three rows deserve a sentence. The objective matters because a binary one leans on absolute
 freshness, while LambdaRank leans on popularity contrasts inside the impression, which is what
-decides the ranking. \textbf{Recent popularity beats lifetime popularity}: counting only the last
-6 hours asks ``how popular is this right now''. In isolation that moved the feature from 0.6902 to
-0.7349, but inside the ranker the gain is far smaller because other features cover for it, so we
-quote the ranker figure. \textbf{Fusion helps on val and hurts on test}, both significantly: the
-mixing weight does not transfer across the time boundary. That is moot next to stage two, but it
-is an honest negative result.
+decides the ranking. Counting only the last 6 hours of clicks asks how popular an article is right
+now rather than how popular it has ever been; in isolation that moved the feature from 0.6902 to
+0.7349, though inside the ranker the gain is far smaller because other features cover for it, so we
+quote the ranker figure. Fusion is the awkward one: it helps on val and hurts on test, both
+significantly, so the mixing weight does not transfer across the time boundary. That is moot next
+to stage two, but it is an honest negative result.

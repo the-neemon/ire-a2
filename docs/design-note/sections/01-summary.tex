@@ -5,27 +5,27 @@ retrieval narrows the catalogue to 200 candidates, then a LightGBM LambdaRank mo
 on 22 click-log features, all restricted to data from strictly before the impression predicted.
 
 \begin{itemize}
-\item \textbf{The behavioural axis is what matters.} On \eb{} the re-ranker scores \EBFinalTest{}
+\item The behavioural axis is what matters. On \eb{} the re-ranker scores \EBFinalTest{}
   test AUC against \EBFusedTest{} for retrieval alone, a gain of \EBGainTest{} \EBGainTestCI.
   Popularity carries most of it: a model given popularity and nothing else already reaches 0.7348.
   Because that signal needs no history, cold-start and warm users gain equally (0.7910 and 0.7908),
   but the re-ranker is \emph{worse} than retrieval on the most popular articles.
-\item \textbf{The same architecture is worth far less on \mind{}}, \MDGainTest{} \MDGainTestCI{}
+\item The same architecture is worth far less on \mind{}, \MDGainTest{} \MDGainTestCI{}
   test, because five of the 22 features have no source there: a measured property of the data, not
   a failure to reproduce.
-\item \textbf{We reproduced NRMS and beat it} with one change, a longer user history:
+\item We reproduced NRMS and beat it with one change, a longer user history:
   $+$0.0094 [$+$0.0086, $+$0.0102] test AUC. Our re-ranker sits about 0.19 AUC above it, because
   NRMS never sees the click log's popularity signal.
-\item \textbf{Honesty is nearly free.} Serving-unavailable features would add only \QnineDelta{}
+\item Honesty is nearly free. Serving-unavailable features would add only \QnineDelta{}
   \QnineCI, against the \EBGainTest{} the behavioural axis earns legitimately. We found and fixed a
   future-click leak contaminating 99.8\% of validation impressions; fixing it \emph{raised} test
   accuracy.
-\item \textbf{Serving fits the budget, and exact search breaks at scale.} A single request takes
+\item Serving fits the budget, and exact search breaks at scale. A single request takes
   \BenchPfifty{} ms at the median and \BenchPninetynine{} ms at p99, inside a 100 ms target. At
   10$\times$ the catalogue exact embedding search grows \BenchAnnGrowth$\times$ and becomes the
   bottleneck; the candidate pool stays flat at \PoolGrowth$\times$, so the other stages do the same
   work more slowly.
-\item \textbf{What we upload is not what we report}, and we say so: Codabench withholds the click
+\item What we upload is not what we report, and we say so: Codabench withholds the click
   labels, so the submitted model drops five popularity features and scores 0.7351 against
   \EBFinalTest{} on our own test split.
 \end{itemize}

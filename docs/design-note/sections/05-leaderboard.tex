@@ -1,10 +1,10 @@
 \section{Leaderboard submissions}
 \label{sec:leaderboard}
 
-\textbf{The uploaded system is a re-ranker, but not the one reported above, and the gap is not in
-our favour.} Both are stated so that the better number never stands in for the uploaded one.
+The uploaded system is a re-ranker, but not the one reported above, and the gap is not in our
+favour. We state both so that the better number never stands in for the uploaded one.
 
-\textbf{Why the two differ.} The Codabench test files withhold \feat{article_ids_clicked}, checked
+The two differ because the Codabench test files withhold \feat{article_ids_clicked}, checked
 by comparing columns rather than assumed: training behaviours minus test behaviours leaves exactly
 the outcome columns. Our five click-popularity features count clicks before each impression, and on
 the test period those clicks \emph{are} the withheld labels, so they cannot be computed there at
@@ -29,7 +29,7 @@ split. The \mind{} upload uses 11 features and scores 0.6460 on our \mind{} test
 \label{tab:submitgap}
 \end{table*}
 
-\textbf{Scale and validation.} The \eb{} test set has 13,536,710 impressions and 205,925,868
+The \eb{} test set has 13,536,710 impressions and 205,925,868
 candidate pairs; \mind{}-large has 2,370,727. Neither fits in memory, so prediction streams in
 slices. Scoring \eb{} took 3\,h\,06\,m at 44\,GB peak on a cluster node, after three earlier
 implementations were abandoned once their measured rates projected 38, 90 and 135 hours; batching
@@ -60,20 +60,20 @@ it picks up. No \eb{} screenshot exists and producing one is not within our cont
 \label{tab:leaderboard}
 \end{table*}
 
-\textbf{The \mind{} upload is marginally below our Assignment~1 entry, and that is the honest
-result.} It is not a regression in the re-ranker. \mind{} ships almost no behavioural signal to
+The \mind{} upload lands marginally below our Assignment~1 entry, which is the honest result and
+not a regression in the re-ranker. \mind{} ships almost no behavioural signal to
 begin with (Section~\ref{sec:system}), so the submitted system there is 11 features against \eb{}'s
 22, and the click-popularity family carrying most of the gain cannot be computed on the test
 period. What remains is close to the Assignment~1 system plus exposure, and lands within 0.003 of
 it. The behavioural axis is worth $+$0.2077 AUC on \eb{} where the columns exist and approximately
 nothing on the \mind{} leaderboard where they do not.
 
-\textbf{The offline prediction held.} We projected 0.6460 for this exact 11-feature configuration
+The offline prediction held. We projected 0.6460 for this exact 11-feature configuration
 on our own \mind{} test split and the leaderboard returned 0.6473, $+$0.0013 apart on a
 2.37M-impression set we have no labels for. That is the strongest available evidence that the
 streaming submission path preserves the offline scoring semantics, which three abandoned
 implementations and a silent NaN mismatch had put in doubt.
 
-\textbf{One caution on the MRR column.} \mind{}'s scorer averages reciprocal rank over every
+One caution on the MRR column: \mind{}'s scorer averages reciprocal rank over every
 clicked article while the common definition credits only the first, so the ``all clicks'' figure is
 the one to compare here (Section~\ref{sec:lessons}).
